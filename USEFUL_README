@@ -1,0 +1,67 @@
+$ showmount -e pacific.fourteeners.local
+Export list for pacific.fourteeners.local:
+/homes
+/Yin-Yin
+/Web
+/Videos
+/Vera
+/VMs
+/VFinity
+/Usb
+/Temp
+/TMBackup
+/Software
+/Recordings
+/Public
+/Photos
+/Network Recycle Bin 2
+/Music
+/Multimedia
+/Movies
+/Images
+/Fonts
+/Erhhung
+/Ella
+/Download
+/Books
+/Backups
+
+---
+
+$ rpcinfo -t pacific.fourteeners.local nfs
+program 100003 version 2 ready and waiting
+program 100003 version 3 ready and waiting
+program 100003 version 4 ready and waiting
+
+---
+
+$ xe sr-probe type=nfs \
+     device-config:server=pacific.fourteeners.local \
+     device-config:serverpath=/VMs \
+     device-config:nfsversion=4.1
+<?xml version="1.0" ?>
+<SRlist>
+  <SR>
+    <UUID>ea15fcf3-fc01-84b0-f89e-344678413dbd</UUID>
+  </SR>
+</SRlist>
+
+---
+
+$ xe sr-create type=nfs shared=true \
+     name-label="Backup storage" \
+     device-config:server=pacific.fourteeners.local \
+     device-config:serverpath=/VMs \
+     device-config:nfsversion=4.1
+ea15fcf3-fc01-84b0-f89e-344678413dbd
+
+---
+
+If accidentally unmounted, restore mount point:
+
+$ uuid=$(xe sr-list --minimal name-label='Backup storage')
+$ mkdir -p /run/sr-mount/$uuid
+$ mount -t nfs4 \
+    pacific.fourteeners.local:/VMs/$uuid \
+                     /run/sr-mount/$uuid \
+    -o vers=4.1,proto=tcp,rw,relatime,rsize=32768,wsize=32768,namlen=255,acdirmin=0,acdirmax=0,soft,timeo=100,retrans=3,sec=sys,clientaddr=192.168.0.151,addr=192.168.0.100,local_lock=none

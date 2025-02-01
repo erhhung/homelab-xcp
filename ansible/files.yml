@@ -1,0 +1,65 @@
+---
+- # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/import_playbook_module.html
+  ansible.builtin.import_playbook: facts.yml
+
+- name: Configure admin user home directory
+  hosts: xcphosts
+  gather_facts: false
+  vars_files:
+    - vars/files.yml
+  vars:
+    iso_sr_path: /srv/iso
+    backup_sr_path: /run/sr-mount/{{ backup_sr_uuid or '.not.found' }}
+  pre_tasks:
+    - name: Check if ISO SR directory exists
+      # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/stat_module.html
+      ansible.builtin.stat:
+        path: "{{ iso_sr_path }}"
+      register: iso_sr_dir
+
+    - name: Check if backup SR directory exists
+      ansible.builtin.stat:
+        path: "{{ backup_sr_path }}"
+      register: backup_sr_dir
+  tasks:
+    - name: Create symlink ~/isos -> {{ iso_sr_path }}
+      # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/file_module.html
+      ansible.builtin.file:
+        src: "{{ iso_sr_path }}"
+        dest: "{{ ansible_user_dir }}/isos"
+        state: link
+      when: iso_sr_dir.stat.exists
+      register: isos_symlink
+
+    - name: Create symlink ~/backups to backup SR
+      ansible.builtin.file:
+        src: "{{ backup_sr_path }}"
+        dest: "{{ ansible_user_dir }}/backups"
+        state: link
+      when: backup_sr_dir.stat.exists
+      register: backups_symlink
+
+    - name: Copy dot files and README files
+      # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/copy_module.html
+      ansible.builtin.copy:
+        src: "{{ playbook_dir | dirname }}/{{ item }}"
+        dest: "{{ ansible_user_dir }}/{{ item }}"
+        mode: 0644
+        directory_mode: 0755
+      loop: "{{ copy_files }}"
+      register: copy
+
+    - name: Touch symlinks and copied files
+      # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/shell_module.html
+      ansible.builtin.shell: |-
+        # restart Bash and load copied .bashrc
+        # in order to use my custom functions
+        exec /bin/bash -l -c '
+          # zeros out file time MM:ss
+          _touch -t 00 . isos backups
+          # now do the same again but recursively
+          touchall -t 00 {{ copy_files | join(' ') }}
+        '
+      when: >-
+        isos_symlink.changed or backups_symlink.changed or
+        copy.results | selectattr('changed') | list | length

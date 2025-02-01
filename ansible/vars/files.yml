@@ -1,0 +1,8 @@
+copy_files:
+  - .bashrc
+  - .gnupg/
+  - .ssh/
+  - BACKUP_README
+  - UPDATE_README
+  - USEFUL_README
+  - version

@@ -1,0 +1,31 @@
+https://docs.xcp-ng.org/installation/upgrade/
+
+# manual point-release (yum-style) upgrade performed on 2/2/2024.
+
+[X] 1. Ensure only official XCP-ng yum repos are enabled:
+       $ grep -r enabled= /etc/yum.repos.d/
+       # only xcp-ng-base and xcp-ng-updates should be enabled! 
+[X] 2. Migrate all running VMs from xcp1 (pool master) to xcp2
+[X] 3. SSH into xcp1:
+       $ cd /tmp
+       $ export VER=8.2
+       $ wget -q https://updates.xcp-ng.org/8/xcp-ng-$VER.repo -O xcp-ng-$VER.repo
+       $ wget -q https://updates.xcp-ng.org/8/SHA256SUMS -O SHA256SUMS
+       $ wget -q https://updates.xcp-ng.org/8/SHA256SUMS.asc -O SHA256SUMS.asc
+       # Check the integrity and origin of the repository file:
+       # https://docs.xcp-ng.org/project/mirrors/#check-a-repository-repo-file
+       $ cp xcp-ng-$VER.repo /etc/yum.repos.d/xcp-ng.repo
+       $ yum clean metadata
+       $ yum update
+[X] 4. Find and resolve conflicting config files:
+       $ find /etc \( -name "*.rpmnew" -or -name "*.rpmsave" ! -name "logrotate.cron.rpmsave" \)
+       # These files are likely candidates:
+       $ diff /etc/yum.repos.d/xcp-ng.repo /etc/yum.repos.d/xcp-ng.repo.rpmnew
+       $ mv /etc/yum.repos.d/xcp-ng.repo.rpmnew /etc/yum.repos.d/xcp-ng.repo
+       $ diff /etc/sysconfig/xencommons /etc/sysconfig/xencommons.rpmsave
+       # Use vi to update /etc/sysconfig/xencommons to preserve XEN_DOM0_UUID
+[X] 5. $ reboot
+[X] 6. Verify new server version:
+       $ cat /etc/os-release
+       # also check hosts in XOA
+[ ] 7. Repeat all steps for xcp2, xcp3, xcp4

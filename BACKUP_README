@@ -1,0 +1,18 @@
+Bash functions and aliases have been defined in
+"~/.bashrc" to make regular backups easy to run:
+
+stopcosmos
+backupcosmos
+startcosmos
+
+stoprainier
+backuprainier
+startrainier
+
+stopxo
+backupxo
+startxo
+
+stopxoa
+backupxoa
+startxoa

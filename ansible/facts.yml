@@ -1,0 +1,65 @@
+---
+- name: Gather XCP-ng host facts
+  hosts: xcphosts
+  gather_facts: false
+  pre_tasks:
+    - # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/include_tasks_module.html
+      ansible.builtin.include_tasks: ansible.yml
+  tasks:
+    - name: Gather facts manually
+      # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/setup_module.html
+      ansible.builtin.setup:
+
+    - name: Get PIF param values
+      # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/command_module.html
+      ansible.builtin.command: >-
+        xe pif-list --minimal params={{ item }} IP={{ ansible_host }}
+      loop:
+        - uuid
+        - host-uuid
+        - host-name-label
+        - DNS
+        - other-config
+      register: pif_params
+      changed_when: false
+
+    - name: Get existing host name
+      ansible.builtin.command: hostname
+      register: hostname_output
+      changed_when: false
+
+    - name: Get UUIDs of SRs
+      ansible.builtin.command: >-
+        xe sr-list --minimal params=uuid name-label='{{ item }}'
+      loop:
+        - Backup storage
+      register: sr_uuids
+      changed_when: false
+      run_once: true
+
+    - name: Set facts from params
+      vars:
+        csv3: "{{ pif_params.results[3].stdout }}"
+        csv4: "{{ (pif_params.results[4].stdout |
+          regex_search('domain: ([^;]+)','\\1') or ['']) | first }}"
+      # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/set_fact_module.html
+      ansible.builtin.set_fact:
+        xcp_pif_uuid: "{{ pif_params.results[0].stdout }}"
+        xcp_host_uuid: "{{ pif_params.results[1].stdout }}"
+        xcp_host_name_xe: "{{ pif_params.results[2].stdout }}"
+        xcp_host_name_os: "{{ hostname_output.stdout }}"
+        # NOTE: xe --minimal returns CSV delimited by backslash-comma
+        xcp_name_servers: "{{ csv3 | split('\\,') if csv3 else [] }}"
+        xcp_search_domains: "{{ csv4 | split('\\,') if csv4 else [] }}"
+        backup_sr_uuid: "{{ sr_uuids.results[0].stdout }}"
+
+    - # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/debug_module.html
+      ansible.builtin.debug:
+        msg: |-
+          xcp_pif_uuid: "{{ xcp_pif_uuid }}"
+          xcp_host_uuid: "{{ xcp_host_uuid }}"
+          xcp_host_name_xe: "{{ xcp_host_name_xe }}"
+          xcp_host_name_os: "{{ xcp_host_name_os }}"
+          xcp_name_servers: "{{ xcp_name_servers | join(',') }}"
+          xcp_search_domains: "{{ xcp_search_domains | join(',') }}"
+          backup_sr_uuid: "{{ backup_sr_uuid }}"

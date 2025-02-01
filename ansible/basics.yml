@@ -1,0 +1,91 @@
+---
+- # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/import_playbook_module.html
+  ansible.builtin.import_playbook: facts.yml
+
+- name: Configure host settings
+  hosts: xcphosts
+  gather_facts: false
+  become: true
+  vars_files:
+    - vars/basics.yml
+  tasks:
+    # https://docs.xenserver.com/en-us/citrix-hypervisor/networking/manage.html#hostname
+    - name: Set host name to {{ inventory_hostname }}
+      # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/command_module.html
+      ansible.builtin.command:
+        argv:
+          - xe
+          - host-set-hostname-live
+          - host-uuid={{ xcp_host_uuid }}
+          - host-name={{ inventory_hostname }}
+      when: >-
+        xcp_host_name_xe != inventory_hostname or
+        xcp_host_name_os != inventory_hostname
+
+    - name: Set machine time zone
+      # https://docs.ansible.com/ansible/latest/collections/community/general/timezone_module.html
+      community.general.timezone:
+        name: America/Los_Angeles
+
+    # https://serverfault.com/questions/959026/how-do-i-generate-and-set-the-locale-using-ansible
+    - name: Get existing locale and language
+      ansible.builtin.command: localectl status
+      register: locale_status
+      changed_when: false
+
+    - name: Parse LANG from localectl output
+      # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/set_fact_module.html
+      ansible.builtin.set_fact:
+        locale_lang: "{{ locale_status.stdout |
+          regex_search('LANG=([^\n]+)','\\1') |
+          first }}"
+
+    - name: Parse LANGUAGE from localectl output
+      ansible.builtin.set_fact:
+        locale_language: "{{ locale_status.stdout |
+          regex_search('LANGUAGE=([^\n]+)','\\1') |
+          default([locale_lang], true) | first }}"
+
+    - name: Set locale to "{{ system_locale }}"
+        and language to "{{ system_language }}"
+      ansible.builtin.command: localectl set-locale
+        LANG={{ system_locale }}
+        LANGUAGE={{ system_language }}
+      when: >-
+        locale_lang != system_locale or
+        locale_language != system_language
+
+- name: Configure network settings
+  hosts: xcphosts
+  gather_facts: false
+  become: true
+  vars_files:
+    - vars/basics.yml
+  tasks:
+    # https://docs.xenserver.com/en-us/citrix-hypervisor/networking/manage.html#dns-servers
+    - name: Set DNS name servers
+      ansible.builtin.command:
+        argv:
+          - xe
+          - pif-reconfigure-ip
+          - uuid={{ xcp_pif_uuid }}
+          - mode=static
+          - IP={{ ansible_host }}
+          - netmask=255.255.255.0
+          - gateway={{ name_servers[0] }}
+          - DNS={{ name_servers | join(',') }}
+      when: xcp_name_servers != name_servers
+      register: result
+      # It's normal to lose connection
+      failed_when: result.rc != 0 and
+        'Lost connection to the server' not in result.stderr
+
+    # https://docs.xcp-ng.org/networking/#-dns-search-domains
+    - name: Set DNS search domains
+      ansible.builtin.command:
+        argv:
+          - xe
+          - pif-param-set
+          - uuid={{ xcp_pif_uuid }}
+          - other-config:domain={{ search_domains | join(',') }}
+      when: xcp_search_domains != search_domains
