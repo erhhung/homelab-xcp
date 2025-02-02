@@ -46,7 +46,7 @@ The Ansible Vault password is stored in macOS Keychain under item "`XCP-ng`" for
     ansible-playbook $VAULT_PASS -i hosts.ini python3.yml
     ```
 
-2. Configure host and network settings  
+2. Configure host and network settings
 
    2.1. **Host**: host name, time zone, locale and language  
    2.2. **Network**: DNS name servers and search domains
@@ -56,7 +56,7 @@ The Ansible Vault password is stored in macOS Keychain under item "`XCP-ng`" for
     ansible-playbook $VAULT_PASS -i hosts.ini basics.yml
     ```
 
-3. Configure admin user home directory
+3. Set up admin user's home directory
 
     3.1. `~/isos` & `~/backups` symlinks  
     3.2. User dot files and README files

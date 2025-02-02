@@ -8,27 +8,10 @@
   become: true
   vars_files:
     - vars/basics.yml
-  tasks:
-    # https://docs.xenserver.com/en-us/citrix-hypervisor/networking/manage.html#hostname
-    - name: Set host name to {{ inventory_hostname }}
-      # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/command_module.html
-      ansible.builtin.command:
-        argv:
-          - xe
-          - host-set-hostname-live
-          - host-uuid={{ xcp_host_uuid }}
-          - host-name={{ inventory_hostname }}
-      when: >-
-        xcp_host_name_xe != inventory_hostname or
-        xcp_host_name_os != inventory_hostname
-
-    - name: Set machine time zone
-      # https://docs.ansible.com/ansible/latest/collections/community/general/timezone_module.html
-      community.general.timezone:
-        name: America/Los_Angeles
-
+  pre_tasks:
     # https://serverfault.com/questions/959026/how-do-i-generate-and-set-the-locale-using-ansible
     - name: Get existing locale and language
+      # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/command_module.html
       ansible.builtin.command: localectl status
       register: locale_status
       changed_when: false
@@ -45,12 +28,29 @@
         locale_language: "{{ locale_status.stdout |
           regex_search('LANGUAGE=([^\n]+)','\\1') |
           default([locale_lang], true) | first }}"
+  tasks:
+    # https://docs.xenserver.com/en-us/citrix-hypervisor/networking/manage.html#hostname
+    - name: Set host name to "{{ inventory_hostname }}"
+      ansible.builtin.command:
+        argv:
+          - xe
+          - host-set-hostname-live
+          - host-uuid={{ xcp_host_uuid }}
+          - host-name={{ inventory_hostname }}
+      when: >-
+        xcp_host_name_xe != inventory_hostname or
+        xcp_host_name_os != inventory_hostname
+
+    - name: Set time zone to "{{ system_time_zone }}"
+      # https://docs.ansible.com/ansible/latest/collections/community/general/timezone_module.html
+      community.general.timezone:
+        name: "{{ system_time_zone }}"
 
     - name: Set locale to "{{ system_locale }}"
         and language to "{{ system_language }}"
-      ansible.builtin.command: localectl set-locale
-        LANG={{ system_locale }}
-        LANGUAGE={{ system_language }}
+      ansible.builtin.command: >-
+        localectl set-locale LANG={{ system_locale }}
+                         LANGUAGE={{ system_language }}
       when: >-
         locale_lang != system_locale or
         locale_language != system_language

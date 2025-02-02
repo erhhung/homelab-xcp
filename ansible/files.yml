@@ -2,7 +2,7 @@
 - # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/import_playbook_module.html
   ansible.builtin.import_playbook: facts.yml
 
-- name: Configure admin user home directory
+- name: Set up admin user's home directory
   hosts: xcphosts
   gather_facts: false
   vars_files:

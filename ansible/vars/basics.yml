@@ -1,7 +1,9 @@
+system_time_zone: America/Los_Angeles
 system_locale: en_US.UTF-8
 system_language: en_US.UTF-8
 
 name_servers:
+  # first address will be used for default gateway
   - 192.168.0.1
   - 1.1.1.1
   - 1.0.0.1
