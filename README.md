@@ -10,6 +10,15 @@ is **CentOS 7.5**, which only makes available **Python versions 2.7.5 and 3.6** 
 This necessitates the use of **ansible-core version < 2.17** (via `pip3 install "ansible < 10"`)  
 _(see list of [Ansible releases](https://docs.ansible.com/ansible/latest/reference_appendices/release_and_maintenance.html#ansible-community-changelogs))_.
 
+Create a **Python virtualenv** and install the Ansible packages:
+
+```bash
+cd ansible
+python3 -m venv .venv
+. .venv/bin/activate
+pip3 install -r requirements.txt
+```
+
 Since XCP-ng is installed without private key authentication for SSH, Ansible requires the `sshpass`  
 program to pass the `ansible_ssh_password` from Vault. Install via `brew install sshpass`.
 
@@ -21,6 +30,7 @@ Store `ansible_ssh_password` in Ansible Vault:
 VAULT_FILE="group_vars/all/vault.yml"
 VAULT_PASS="--vault-password-file=vaultpass.sh"
 
+cd ansible
 ansible-vault create $VAULT_FILE $VAULT_PASS
 ansible-vault edit   $VAULT_FILE $VAULT_PASS
 ```
