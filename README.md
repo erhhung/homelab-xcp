@@ -27,33 +27,38 @@ program to pass the `ansible_ssh_password` from Vault. Install via `brew install
 Store `ansible_ssh_password` in Ansible Vault:
 
 ```bash
-VAULT_FILE="group_vars/all/vault.yml"
-VAULT_PASS="--vault-password-file=vaultpass.sh"
+VAULTFILE="group_vars/all/vault.yml"
+VAULTPASS="--vault-password-file=vaultpass.sh"
 
 cd ansible
-ansible-vault create $VAULT_FILE $VAULT_PASS
-ansible-vault edit   $VAULT_FILE $VAULT_PASS
+ansible-vault create $VAULTFILE $VAULTPASS
+ansible-vault edit   $VAULTFILE $VAULTPASS
 ```
 
 The Ansible Vault password is stored in macOS Keychain under item "`XCP-ng`" for account "`ansible-vault`".
 
 ## Playbooks
 
+Set these variables first for the `ansible-playbook` commands below:
+
+```bash
+INVENTORY="--inventory=inventory/hosts.ini"
+VAULTPASS="--vault-password-file=vaultpass.sh"
+```
+
 1. Install Python 3.6 on all hosts
 
     ```bash
-    VAULT_PASS="--vault-password-file=vaultpass.sh"
-    ansible-playbook $VAULT_PASS -i hosts.ini python3.yml
+    ansible-playbook $INVENTORY $VAULTPASS python3.yml
     ```
 
 2. Configure host and network settings
 
-   2.1. **Host**: host name, time zone, locale and language  
-   2.2. **Network**: DNS name servers and search domains
+    2.1. **Host**: host name, time zone, locale and language  
+    2.2. **Network**: DNS name servers and search domains
 
     ```bash
-    VAULT_PASS="--vault-password-file=vaultpass.sh"
-    ansible-playbook $VAULT_PASS -i hosts.ini basics.yml
+    ansible-playbook $INVENTORY $VAULTPASS basics.yml
     ```
 
 3. Set up admin user's home directory
@@ -62,6 +67,5 @@ The Ansible Vault password is stored in macOS Keychain under item "`XCP-ng`" for
     3.2. User dot files and README files
 
     ```bash
-    VAULT_PASS="--vault-password-file=vaultpass.sh"
-    ansible-playbook $VAULT_PASS -i hosts.ini files.yml
+    ansible-playbook $INVENTORY $VAULTPASS files.yml
     ```

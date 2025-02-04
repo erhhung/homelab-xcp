@@ -1,3 +1,5 @@
+# Emacs -*-Shell-Script-*- Mode
+
 # shellcheck disable=SC2148 # Tips depend on target shell
 # shellcheck disable=SC1091 # Not following: not input file
 # shellcheck disable=SC2086 # Double quote prevent globbing
