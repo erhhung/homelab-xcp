@@ -1,0 +1,6 @@
+exclude_paths:
+  - group_vars/all/vault.yml
+skip_list:
+  - name[template]
+  - jinja[spacing]
+  - run-once[task]

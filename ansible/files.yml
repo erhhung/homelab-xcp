@@ -1,5 +1,6 @@
 ---
-- # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/import_playbook_module.html
+- name: Run custom fact-gathering playbook
+  # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/import_playbook_module.html
   ansible.builtin.import_playbook: facts.yml
 
 - name: Set up admin user's home directory
@@ -29,7 +30,7 @@
         dest: "{{ ansible_user_dir }}/isos"
         state: link
       when: iso_sr_dir.stat.exists
-      register: isos_symlink
+      notify: Touch symlinks and copied files
 
     - name: Create symlink ~/backups to backup SR
       ansible.builtin.file:
@@ -37,18 +38,18 @@
         dest: "{{ ansible_user_dir }}/backups"
         state: link
       when: backup_sr_dir.stat.exists
-      register: backups_symlink
+      notify: Touch symlinks and copied files
 
     - name: Copy dot files and README files
       # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/copy_module.html
       ansible.builtin.copy:
         src: "{{ playbook_dir | dirname }}/{{ item }}"
         dest: "{{ ansible_user_dir }}/{{ item }}"
-        mode: 0644
-        directory_mode: 0755
+        mode: "0644"
+        directory_mode: "0755"
       loop: "{{ copy_files }}"
-      register: copy
-
+      notify: Touch symlinks and copied files
+  handlers:
     - name: Touch symlinks and copied files
       # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/shell_module.html
       ansible.builtin.shell: |-
@@ -58,8 +59,5 @@
           # zeros out file time MM:ss
           _touch -t 00 . isos backups
           # now do the same again but recursively
-          touchall -t 00 {{ copy_files | join(' ') }}
-        '
-      when: >-
-        isos_symlink.changed or backups_symlink.changed or
-        copy.results | selectattr('changed') | list | length
+          touchall -t 00 {{ copy_files | join(' ') }}'
+      changed_when: true

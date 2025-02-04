@@ -1,3 +1,12 @@
+# shellcheck disable=SC2148 # Tips depend on target shell
+# shellcheck disable=SC1091 # Not following: not input file
+# shellcheck disable=SC2086 # Double quote prevent globbing
+# shellcheck disable=SC2155 # Declare and assign separately
+# shellcheck disable=SC2128 # Expanding array without index
+# shellcheck disable=SC2178 # Variable was used as an array
+# shellcheck disable=SC2179 # Use array+=("item") to append
+# shellcheck disable=SC2207 # Prefer mapfile to split output
+
 # source global definitions
 if [ -f /etc/bashrc ]; then
   . /etc/bashrc
@@ -74,6 +83,7 @@ syncdate() {
 parse_xe_output() {
   local line found params values i j q
   if [ "$1" == --use-quotes ]; then
+     # shellcheck disable=SC2089
      q='"'
      shift
   fi
@@ -83,13 +93,13 @@ parse_xe_output() {
 
   while IFS= read -r line; do
     if [[ "$line" =~ ^[[:space:]]*$ ]]; then
-      found= # end of item
+      found="" # end of item
       continue
     fi
     if [ ! "$found" ]; then
       # locate first param with no left padding
       [[ "$line" =~ ^[[:alnum:]] ]] || continue
-      found=1 output= params=() values=()
+      found=1 output="" params=() values=()
     fi
     # param name always in kebab case and value always after colon
     [[ "$line" =~ ^[[:space:]]*([-a-z]+)[^:]+:(.+)$ ]] || continue
@@ -107,13 +117,17 @@ parse_xe_output() {
       # find value in params in parsed order
       for ((j = 0; j < ${#params[@]}; j++)); do
         if [ "${params[$j]}" == "${!i}" ]; then
+
+          # shellcheck disable=SC2116
           output+=" $q$(echo ${values[$j]})$q"
           break
         fi
       done
     done
+
+    # shellcheck disable=SC2090
     echo $output # no quotes to trim spaces
-    found= # skip remaining params of object
+    found="" # skip remaining object params
   done
 }
 
@@ -143,7 +157,7 @@ export_xe_vars() {
     [ "$var" ] || continue # ignore if untagged
 
     # sanitize tag and make it uppercase
-    var="${var[@]:1}"; var="${var// /_}"
+    var="${var[*]:1}"; var="${var// /_}"
 
     if [[ "$2" == p:* ]]; then
       value="${line[1]}"
@@ -158,14 +172,17 @@ export_xe_vars() {
   )
 }
 
+# NOTE: "host-name" and "backup-dir" are
+# CUSTOM TAGS manually added to all VMs
+
 # export UUID_* NAME_* PATH_* environment vars
 # verify: env | sort | egrep '(UUID|NAME|PATH)_'
-export_xe_vars "vm-list is-control-domain=false" t:backup-dir host-name path
-export_xe_vars "vm-list is-control-domain=false" p:name-label host-name name
-export_xe_vars "vm-list is-control-domain=false" p:uuid       host-name uuid
-export_xe_vars "sr-list type=iso"                p:uuid       host uuid_isos
+export_xe_vars "vm-list is-control-domain=false is-a-snapshot=false" t:backup-dir host-name path
+export_xe_vars "vm-list is-control-domain=false is-a-snapshot=false" p:name-label host-name name
+export_xe_vars "vm-list is-control-domain=false is-a-snapshot=false" p:uuid       host-name uuid
+export_xe_vars "sr-list type=iso"                                    p:uuid       host uuid_isos
 
-alias listvms='xe vm-list is-control-domain=false'
+alias listvms='xe vm-list is-control-domain=false is-a-snapshot=false'
 alias listsrs='xe sr-list'
 
 refreshisos() {
@@ -173,51 +190,72 @@ refreshisos() {
     env | grep UUID_ISOS | \
       sed -E 's/^.+=//'
   ))
-  for uuid in ${UUIDS[@]}; do
-    xe sr-scan uuid=$uuid
+  for uuid in "${UUIDS[@]}"; do
+    xe sr-scan uuid="$uuid"
   done
 }
 
 stopvm() {
   [ -n "$2" ] && echo "Stopping $2..."
-  xe vm-shutdown uuid=$1
+  xe vm-shutdown uuid="$1"
 }
 startvm() {
   [ -n "$2" ] && echo "Starting $2..."
-  xe vm-start uuid=$1
+  xe vm-start uuid="$1"
 }
 
 suspendvm() {
   [ -n "$2" ] && echo "Suspending $2..."
-  xe vm-suspend uuid=$1
+  xe vm-suspend uuid="$1"
 }
 resumevm() {
   [ -n "$2" ] && echo "Resuming $2..."
-  xe vm-resume uuid=$1
+  xe vm-resume uuid="$1"
 }
 
-# exportvm <uuid> <rel-path>
-# e.g. exportvm $UUID_XO "$PATH_XO/$NAME_XO"
-exportvm() {
-  local path="/root/backups/$2 $(date "+%Y-%m-%d").xva"
-  xe vm-export uuid=$1 filename="$path"
-  chown 30002:30003 "$path"
-  chmod 666         "$path"
+# backupvm <uuid> <rel-path>
+# e.g. backupvm $UUID_XO "$PATH_XO/$NAME_XO"
+backupvm() {
+  [ -L "$HOME/backups" ] || {
+    echo >&2 'Path ~/backups/ not found!'
+    return 1
+  }
+  local file="$HOME/backups/${2:-$1} $(date "+%Y-%m-%d").xva"
+  local dir="$(dirname "$file")"
+  [ -d "$dir" ] || {
+    mkdir -p "$dir"
+    _touch -t 00      "$dir/.."
+    chown 30002:30003 "$dir"
+    chmod 777         "$dir"
+  }
+
+  echo "Exporting: ${file/#$HOME/~}"
+  xe vm-export uuid="$1" filename="$file"
+
+  # UID 30002: FOURTEENERS\Erhhung
+  # GID 30003: FOURTEENERS\Domain Users
+  _touch -t 00      "$file" "$dir"
+  chown 30002:30003 "$file"
+  chmod 666         "$file"
 }
 
-alias        startxo='startvm $UUID_XO        "$NAME_XO"'
-alias       startxoa='startvm $UUID_XOA       "$NAME_XOA"'
-alias    startcosmos='startvm $UUID_COSMOS    "$NAME_COSMOS"'
-alias   startrainier='startvm $UUID_RAINIER   "$NAME_RAINIER"'
-alias startminecraft='startvm $UUID_MINECRAFT "$NAME_MINECRAFT"'
-alias       startvms='startxo; startxoa; startrainier; startcosmos'
-alias        backupxo='exportvm $UUID_XO        "$PATH_XO/$NAME_XO"'
-alias       backupxoa='exportvm $UUID_XOA       "$PATH_XOA/$NAME_XOA"'
-alias    backupcosmos='exportvm $UUID_COSMOS    "$PATH_COSMOS/$NAME_COSMOS"'
-alias   backuprainier='exportvm $UUID_RAINIER   "$PATH_RAINIER/$NAME_RAINIER"'
-alias backupminecraft='exportvm $UUID_MINECRAFT "$PATH_MINECRAFT/$NAME_MINECRAFT"'
-alias        stopxo='stopvm $UUID_XO        "$NAME_XO"'
-alias       stopxoa='stopvm $UUID_XOA       "$NAME_XOA"'
-alias    stopcosmos='stopvm $UUID_COSMOS    "$NAME_COSMOS"'
-alias   stoprainier='stopvm $UUID_RAINIER   "$NAME_RAINIER"'
-alias stopminecraft='stopvm $UUID_MINECRAFT "$NAME_MINECRAFT"'
+_names() {
+  xe vm-list is-control-domain=false \
+             is-a-snapshot=false \
+             params=tags | \
+    sed -En 's/^.*host-name=([^,]+).*$/\1/p' | \
+    sort
+}
+make_aliases() {
+  local name
+  for name in $(_names); do
+    eval "alias    stop$name='stopvm    \$UUID_${name^^} \"\$NAME_${name^^}\"'"
+    eval "alias   start$name='startvm   \$UUID_${name^^} \"\$NAME_${name^^}\"'"
+    eval "alias suspend$name='suspendvm \$UUID_${name^^} \"\$NAME_${name^^}\"'"
+    eval "alias  resume$name='resumevm  \$UUID_${name^^} \"\$NAME_${name^^}\"'"
+    eval "alias  backup$name='backupvm  \$UUID_${name^^} \"\$PATH_${name^^}/\$NAME_${name^^}\"'"
+  done
+}
+
+make_aliases
+alias startvms='startxo; startxoa; startrainier; startcosmos; startrancher'

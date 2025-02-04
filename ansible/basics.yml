@@ -1,5 +1,6 @@
 ---
-- # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/import_playbook_module.html
+- name: Run custom fact-gathering playbook
+  # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/import_playbook_module.html
   ansible.builtin.import_playbook: facts.yml
 
 - name: Configure host settings
@@ -40,6 +41,7 @@
       when: >-
         xcp_host_name_xe != inventory_hostname or
         xcp_host_name_os != inventory_hostname
+      changed_when: true
 
     - name: Set time zone to "{{ system_time_zone }}"
       # https://docs.ansible.com/ansible/latest/collections/community/general/timezone_module.html
@@ -52,8 +54,9 @@
         localectl set-locale LANG={{ system_locale }}
                          LANGUAGE={{ system_language }}
       when: >-
-        locale_lang != system_locale or
+        locale_lang     != system_locale or
         locale_language != system_language
+      changed_when: true
 
 - name: Configure network settings
   hosts: xcphosts
@@ -79,6 +82,7 @@
       # It's normal to lose connection
       failed_when: result.rc != 0 and
         'Lost connection to the server' not in result.stderr
+      changed_when: true
 
     # https://docs.xcp-ng.org/networking/#-dns-search-domains
     - name: Set DNS search domains
@@ -89,3 +93,4 @@
           - uuid={{ xcp_pif_uuid }}
           - other-config:domain={{ search_domains | join(',') }}
       when: xcp_search_domains != search_domains
+      changed_when: true

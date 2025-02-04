@@ -3,7 +3,8 @@
   hosts: xcphosts
   gather_facts: false
   pre_tasks:
-    - # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/include_tasks_module.html
+    - name: Run task to check Ansible version
+      # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/include_tasks_module.html
       ansible.builtin.include_tasks: ansible.yml
   tasks:
     - name: Gather facts manually
@@ -53,7 +54,8 @@
         xcp_search_domains: "{{ csv4 | split('\\,') if csv4 else [] }}"
         backup_sr_uuid: "{{ sr_uuids.results[0].stdout }}"
 
-    - # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/debug_module.html
+    - name: Print gathered facts
+      # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/debug_module.html
       ansible.builtin.debug:
         msg: |-
           xcp_pif_uuid: "{{ xcp_pif_uuid }}"
