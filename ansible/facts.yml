@@ -3,9 +3,9 @@
   hosts: xcphosts
   gather_facts: false
   pre_tasks:
-    - name: Run task to check Ansible version
+    - name: Require Ansible version
       # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/include_tasks_module.html
-      ansible.builtin.include_tasks: ansible.yml
+      ansible.builtin.include_tasks: tasks/version.yml
   tasks:
     - name: Gather facts manually
       # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/setup_module.html

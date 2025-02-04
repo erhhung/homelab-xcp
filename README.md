@@ -69,3 +69,9 @@ VAULTPASS="--vault-password-file=vaultpass.sh"
     ```bash
     ansible-playbook $INVENTORY $VAULTPASS files.yml
     ```
+
+Alternatively, **run all 3 playbooks** from the project root folder:
+
+```bash
+./play.sh
+```

@@ -1,0 +1,9 @@
+---
+- name: Include Python 3 installation playbook
+  ansible.builtin.import_playbook: python3.yml
+
+- name: Include host & network settings playbook
+  ansible.builtin.import_playbook: basics.yml
+
+- name: Include user home directory setup playbook
+  ansible.builtin.import_playbook: files.yml

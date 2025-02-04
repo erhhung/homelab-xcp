@@ -10,7 +10,7 @@
     python3_package: python{{ python3_version | replace('.','') }}
     python3_path: /usr/bin/{{ python3_package }}
   pre_tasks:
-    - name: Check if Python 3 is installed
+    - name: Is Python 3 already installed?
       # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/raw_module.html
       ansible.builtin.raw: "{{ python3_path }} --version"
       register: check_result
@@ -19,25 +19,11 @@
   tasks:
     - name: Install YUM package "{{ python3_package }}"
       ansible.builtin.raw: yum install -y {{ python3_package }}
-      when: check_result.rc != 0
+      when: check_result.rc
       changed_when: true
-
-    # - name: Add EPEL repository
-    #   # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/yum_repository_module.html
-    #   ansible.builtin.yum_repository:
-    #     name: epel
-    #     state: present
-
-    #   when: check_result.rc != 0
-    # - name: Install Python 3
-    #   # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/package_module.html
-    #   ansible.builtin.package:
-    #     name: "{{ python3_package }}"
-    #     state: present
-    #   when: check_result.rc != 0
 
     - name: Link python3 to {{ python3_path }}
       ansible.builtin.raw: |-
         update-alternatives --install /usr/bin/python3 python3 {{ python3_path }} 1
-      when: check_result.rc != 0
+      when: check_result.rc
       changed_when: true
