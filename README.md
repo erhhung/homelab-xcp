@@ -14,6 +14,7 @@ Create a **Python virtualenv** and install the Ansible packages:
 
 ```bash
 cd ansible
+
 python3 -m venv .venv
 . .venv/bin/activate
 pip3 install -r requirements.txt
@@ -27,29 +28,27 @@ program to pass the `ansible_ssh_password` from Vault. Install via `brew install
 Store `ansible_ssh_password` in Ansible Vault:
 
 ```bash
+export ANSIBLE_CONFIG=./ansible.cfg
 VAULTFILE="group_vars/all/vault.yml"
-VAULTPASS="--vault-password-file=vaultpass.sh"
 
-cd ansible
-ansible-vault create $VAULTFILE $VAULTPASS
-ansible-vault edit   $VAULTFILE $VAULTPASS
+ansible-vault create $VAULTFILE
+ansible-vault edit   $VAULTFILE
 ```
 
 The Ansible Vault password is stored in macOS Keychain under item "`XCP-ng`" for account "`ansible-vault`".
 
 ## Playbooks
 
-Set these variables first for the `ansible-playbook` commands below:
+Set the config variable first for the `ansible-playbook` commands below:
 
 ```bash
-INVENTORY="--inventory=inventory/hosts.ini"
-VAULTPASS="--vault-password-file=vaultpass.sh"
+export ANSIBLE_CONFIG=./ansible.cfg
 ```
 
 1. Install Python 3.6 on all hosts
 
     ```bash
-    ansible-playbook $INVENTORY $VAULTPASS python3.yml
+    ansible-playbook python3.yml
     ```
 
 2. Configure host and network settings
@@ -58,7 +57,7 @@ VAULTPASS="--vault-password-file=vaultpass.sh"
     2.2. **Network**: DNS name servers and search domains
 
     ```bash
-    ansible-playbook $INVENTORY $VAULTPASS basics.yml
+    ansible-playbook basics.yml
     ```
 
 3. Set up admin user's home directory
@@ -67,7 +66,7 @@ VAULTPASS="--vault-password-file=vaultpass.sh"
     3.2. User dot files and README files
 
     ```bash
-    ansible-playbook $INVENTORY $VAULTPASS files.yml
+    ansible-playbook files.yml
     ```
 
 Alternatively, **run all 3 playbooks** from the project root folder:

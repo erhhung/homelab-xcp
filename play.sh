@@ -14,6 +14,5 @@ python3 -m venv .venv
 echo -e "Installing Ansible from requirements...\n"
 pip3 install -r requirements.txt
 
-INVENTORY="--inventory=inventory/hosts.ini"
-VAULTPASS="--vault-password-file=vaultpass.sh"
-ansible-playbook $INVENTORY $VAULTPASS main.yml
+export ANSIBLE_CONFIG=./ansible.cfg
+ansible-playbook main.yml

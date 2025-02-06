@@ -197,6 +197,10 @@ refreshisos() {
   done
 }
 
+vmstate() {
+  xe vm-list --minimal uuid="$1" params=power-state
+}
+
 stopvm() {
   [ -n "$2" ] && echo "Stopping $2..."
   xe vm-shutdown uuid="$1"
