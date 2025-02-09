@@ -2,6 +2,9 @@
 - name: Include Python 3 installation playbook
   ansible.builtin.import_playbook: python3.yml
 
+- name: Include packages installation playbook
+  ansible.builtin.import_playbook: packages.yml
+
 - name: Include host & network settings playbook
   ansible.builtin.import_playbook: basics.yml
 

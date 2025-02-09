@@ -1,8 +1,4 @@
 ---
-- name: Run custom fact-gathering playbook
-  # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/import_playbook_module.html
-  ansible.builtin.import_playbook: facts.yml
-
 - name: Configure host settings
   hosts: xcphosts
   gather_facts: false
@@ -10,6 +6,11 @@
   vars_files:
     - vars/basics.yml
   pre_tasks:
+    - name: Include tasks to gather XCP-ng facts
+      # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/include_tasks_module.html
+      ansible.builtin.include_tasks: tasks/facts.yml
+      when: xcp_host_uuid is undefined
+
     # https://serverfault.com/questions/959026/how-do-i-generate-and-set-the-locale-using-ansible
     - name: Get existing locale and language
       # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/command_module.html

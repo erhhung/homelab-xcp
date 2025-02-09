@@ -3,6 +3,7 @@
 # shellcheck disable=SC2148 # Tips depend on target shell
 # shellcheck disable=SC1091 # Not following: not input file
 # shellcheck disable=SC2086 # Double quote prevent globbing
+# shellcheck disable=SC2089 # Quote and \ treated literally
 # shellcheck disable=SC2155 # Declare and assign separately
 # shellcheck disable=SC2128 # Expanding array without index
 # shellcheck disable=SC2178 # Variable was used as an array
@@ -78,15 +79,14 @@ syncdate() {
   date -s "${date}Z"
 }
 
-# parse_xe_output [--use-quotes] [param1 param2 ...]
+# parse_xe_output [--quote] [param1 param2 ...]
 # e.g. xe vm-list | parse_xe_output uuid name-label
-# param values of each object, each quoted if --use-quotes specified,
-# are output space-separated on the same line in the order specified
+# param values of each object, each quoted if --quote specified,
+# are output space-separated on the same line in specified order
 parse_xe_output() {
   local line found params values i j q
-  if [ "$1" == --use-quotes ]; then
-     # shellcheck disable=SC2089
-     q='"'
+  if [ "$1" == --quote ]; then
+     q="'"
      shift
   fi
   # just return uuids if no
@@ -120,8 +120,16 @@ parse_xe_output() {
       for ((j = 0; j < ${#params[@]}; j++)); do
         if [ "${params[$j]}" == "${!i}" ]; then
 
-          # shellcheck disable=SC2116
-          output+=" $q$(echo ${values[$j]})$q"
+          # trim leading whitespace from value
+          local str="${values[$j]%%[![:space:]]*}"
+          str="${values[$j]#"$str"}"
+
+          if [ "$q" ]; then
+            # escape single quotes, then
+            # single quote entire string
+            str="'${str//\'/\'\"\'\"\'}'"
+          fi
+          output+=" $str"
           break
         fi
       done
@@ -168,9 +176,10 @@ export_xe_vars() {
       value="${value[*]:1}"
     fi
     eval "export ${4:+${4^^}_}${var^^}=\"$value\""
-  done < <( # outputs lines with quoted value(s) on each
+
+  done < <( # outputs lines with quoted values
     params=tags; [[ "$2" == p:* ]] && params+=${2/#p:/,}
-    xe $1 params=$params | parse_xe_output --use-quotes ${params//,/ }
+    xe $1 params=$params | parse_xe_output --quote ${params//,/ }
   )
 }
 
@@ -195,6 +204,46 @@ refreshisos() {
   for uuid in "${UUIDS[@]}"; do
     xe sr-scan uuid="$uuid"
   done
+}
+
+# _snapshots [--delim='char'] [vm-uuid]
+# e.g. _snapshots --delim='|' $UUID_XO
+# outputs each snapshot containing
+# space-separated fields in order:
+# ISO date, SS UUID, VM UUID, host, description
+_snapshots() {
+  local params d=' ' line tags vmid uuid desc host date
+  params="tags,uuid,name-description,snapshot-of,snapshot-time"
+
+  if [[ "$1" == --delim=* ]]; then
+    # use specified delimiter
+    d="${1#--delim=}"; shift
+  fi
+  while read -r line; do
+    eval "line=($line)"
+
+    uuid="${line[1]}"
+    desc="${line[2]}"
+    vmid="${line[3]}"
+    date="${line[4]}"
+
+    # parse CSV into key value lines
+    tags=$(parse_xe_tags <<< "$line")
+
+    [[ "$vmid" == *"not in"* ]] && \
+      vmid='00000000-0000-0000-0000-000000000000'
+    host=($(grep -P '^host-name\s' <<< "$tags"))
+    host="${host[*]:1}"
+    host="${host:-_NA_}"
+    # reformat raw date in "YYYYmmddTHH:MM:SSZ" format
+    date="${date:0:4}-${date:4:2}-${date:6:2}${date:8}"
+
+    echo "$date$d$uuid$d$vmid$d$host$d$desc"
+  done < <( # outputs lines with quoted values
+    [ "$1" ] && args="snapshot-of=$1"
+    xe snapshot-list $args params=$params | \
+      parse_xe_output --quote ${params//,/ }
+  ) | sort
 }
 
 vmstate() {

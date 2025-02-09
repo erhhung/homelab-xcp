@@ -12,6 +12,7 @@ python3 -m venv .venv
 . .venv/bin/activate
 
 echo -e "Installing Ansible from requirements...\n"
+pip3 install -U pip
 pip3 install -r requirements.txt
 
 export ANSIBLE_CONFIG=./ansible.cfg

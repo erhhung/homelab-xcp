@@ -23,7 +23,7 @@
       changed_when: true
 
     - name: Link python3 to {{ python3_path }}
-      ansible.builtin.raw: |-
+      ansible.builtin.raw: |
         update-alternatives --install /usr/bin/python3 python3 {{ python3_path }} 1
       when: check_result.rc
       changed_when: true

@@ -1,17 +1,20 @@
 ---
-- name: Run custom fact-gathering playbook
-  # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/import_playbook_module.html
-  ansible.builtin.import_playbook: facts.yml
-
 - name: Set up admin user's home directory
   hosts: xcphosts
   gather_facts: false
   vars_files:
     - vars/files.yml
-  vars:
-    iso_sr_path: /srv/iso
-    backup_sr_path: /run/sr-mount/{{ backup_sr_uuid or '.not.found' }}
   pre_tasks:
+    - name: Include tasks to gather XCP-ng facts
+      # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/include_tasks_module.html
+      ansible.builtin.include_tasks: tasks/facts.yml
+      when: xcp_host_uuid is undefined
+
+    - name: Define mounted SR paths with facts
+      ansible.builtin.set_fact:
+        iso_sr_path: /srv/iso
+        backup_sr_path: /run/sr-mount/{{ backup_sr_uuid or '.not.found' }}
+
     - name: Check if ISO SR directory exists
       # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/stat_module.html
       ansible.builtin.stat:
@@ -52,12 +55,14 @@
   handlers:
     - name: Touch symlinks and copied files
       # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/shell_module.html
-      ansible.builtin.shell: |-
-        # restart Bash and load copied .bashrc
-        # in order to use my custom functions
-        exec /bin/bash -l -c '
-          # zeros out file time MM:ss
-          _touch -t 00 . isos backups
-          # now do the same again but recursively
-          touchall -t 00 {{ copy_files | join(' ') }}'
+      ansible.builtin.shell: |
+        # run Bash to load .bashrc in order to
+        # use exported functions and variables
+        cat <<'EOT' | exec /bin/bash -l
+
+        # zero out file times MM:ss
+        _touch -t 00 . isos backups
+        # now do the same again but recursively
+        touchall -t 00 {{ copy_files | map('quote') | join(' ') }}
+        EOT
       changed_when: true

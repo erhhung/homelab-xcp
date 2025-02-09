@@ -1,0 +1,9 @@
+# Install packages not included in
+# the stock XCP-ng dom0 environment
+
+# WARNING! Be very careful with installing non-critical cruft:
+# see: https://docs.xcp-ng.org/management/additional-packages/
+
+extra_packages:
+  - name: jq
+    repo: epel
