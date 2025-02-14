@@ -4,6 +4,6 @@
 # WARNING! Be very careful with installing non-critical cruft:
 # see: https://docs.xcp-ng.org/management/additional-packages/
 
-extra_packages:
+extra_yum_packages:
   - name: jq
     repo: epel

@@ -13,8 +13,6 @@ _(see list of [Ansible releases](https://docs.ansible.com/ansible/latest/referen
 Create a **Python virtualenv** and install the Ansible packages:
 
 ```bash
-cd ansible
-
 python3 -m venv .venv
 . .venv/bin/activate
 pip3 install -U pip
@@ -81,11 +79,14 @@ export ANSIBLE_CONFIG=./ansible.cfg
     ansible-playbook files.yml
     ```
 
-Alternatively, **run all 4 playbooks** from the project root folder:
+Alternatively, **run all 4 playbooks** automatically in order:
 
 ```bash
-./play.sh
+# pass options like -v and --step
+./play.sh [ansible-playbook-opts]
 ```
+
+Output from `play.sh` will be logged in "`ansible.log`".
 
 ## Troubleshooting
 

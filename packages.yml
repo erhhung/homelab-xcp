@@ -1,0 +1,25 @@
+ # https://docs.xcp-ng.org/management/additional-packages/
+---
+- name: Install extra packages
+  hosts: xcphosts
+  gather_facts: false
+  become: true
+  vars_files:
+    - vars/packages.yml
+  pre_tasks:
+    - name: Require Ansible version
+      # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/include_tasks_module.html
+      ansible.builtin.include_tasks: tasks/version.yml
+  tasks:
+    - name: Install extra packages
+      vars:
+        yum_args: "{{ '--enablerepo=' ~ item.repo if item.repo is defined else '' }}"
+      # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/command_module.html
+      # ansible.builtin.dnf (a.k.a. ansible.builtin.yum) module doesn't work!
+      ansible.builtin.command: yum install -y {{ item.name }} {{ yum_args }}
+      loop: "{{ extra_yum_packages }}"
+      loop_control:
+        label: "{{ item.repo }}|{{ item.name }}"
+      register: install_pkg
+      # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/search_test.html
+      changed_when: install_pkg.stdout is not search('Nothing to do')

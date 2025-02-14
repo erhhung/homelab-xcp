@@ -17,6 +17,7 @@
     - host-name-label
     - DNS
     - other-config
+  timeout: 60
   register: pif_params
   changed_when: false
 
@@ -26,13 +27,13 @@
   changed_when: false
 
 - name: Get UUIDs of SRs
+  run_once: true
   ansible.builtin.command: >-
     xe sr-list --minimal params=uuid name-label='{{ item }}'
   loop:
     - Backup storage
   register: sr_uuids
   changed_when: false
-  run_once: true
 
 - name: Set facts from params
   vars:

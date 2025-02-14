@@ -8,7 +8,7 @@
   pre_tasks:
     - name: Include tasks to gather XCP-ng facts
       # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/include_tasks_module.html
-      ansible.builtin.include_tasks: tasks/facts.yml
+      ansible.builtin.include_tasks: tasks/xcpfacts.yml
       when: xcp_host_uuid is undefined
 
     # https://serverfault.com/questions/959026/how-do-i-generate-and-set-the-locale-using-ansible

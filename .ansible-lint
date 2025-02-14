@@ -1,4 +1,5 @@
 exclude_paths:
+  - .ansible/
   - group_vars/all/vault.yml
 skip_list:
   - name[template]

@@ -4,6 +4,7 @@
 # https://github.com/ansible/ansible/issues/82068#issuecomment-2123559913
 ---
 - name: Check Ansible version
+  run_once: true
   # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/assert_module.html
   ansible.builtin.assert:
     that:
@@ -15,4 +16,3 @@
       Ansible version {{ ansible_version.full }} is not supported!
       This playbook requires "ansible < 10" (ansible-core < 2.17),
       which can be installed via pip: pip3 install "ansible < 10"
-  run_once: true
