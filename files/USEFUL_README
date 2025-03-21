@@ -1,30 +1,29 @@
 $ showmount -e pacific.fourteeners.local
 Export list for pacific.fourteeners.local:
-/homes
-/Yin-Yin
-/Web
-/Videos
-/Vera
-/VMs
-/VFinity
-/Usb
-/Temp
-/TMBackup
-/Software
-/Recordings
-/Public
-/Photos
-/Network Recycle Bin 2
-/Music
-/Multimedia
-/Movies
-/Images
-/Fonts
-/Erhhung
-/Ella
-/Download
-/Books
 /Backups
+/Books
+/Download
+/Ella
+/Erhhung
+/Fonts
+/Images
+/Movies
+/Multimedia
+/Music
+/Photos
+/Public
+/Recordings
+/Software
+/TMBackup
+/Temp
+/VFinity
+/VMs
+/Vera
+/Videos
+/Web
+/Yin-Yin
+/homes
+/k8s_data
 
 ---
 

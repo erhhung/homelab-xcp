@@ -60,7 +60,6 @@
         # run Bash to load .bashrc in order to
         # use exported functions and variables
         exec /bin/bash -l <<'EOT'
-
         # zero out file times MM:ss
         _touch -t 00 . isos backups
         # now do the same again but recursively

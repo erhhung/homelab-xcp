@@ -1,5 +1,6 @@
 ---
 - name: Configure host settings
+  tags: system
   hosts: xcphosts
   gather_facts: false
   become: true
@@ -60,6 +61,7 @@
       changed_when: true
 
 - name: Configure network settings
+  tags: network
   hosts: xcphosts
   gather_facts: false
   become: true

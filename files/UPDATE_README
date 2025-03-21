@@ -4,14 +4,14 @@ https://docs.xcp-ng.org/installation/upgrade/
 
 [X] 1. Ensure only official XCP-ng yum repos are enabled:
        $ grep -r enabled= /etc/yum.repos.d/
-       # only xcp-ng-base and xcp-ng-updates should be enabled! 
-[X] 2. Migrate all running VMs from xcp1 (pool master) to xcp2
+       # only xcp-ng-base and xcp-ng-updates should be enabled!
+[X] 2. Migrate or shut down running VMs on xcp1 (pool master)
 [X] 3. SSH into xcp1:
        $ cd /tmp
        $ export VER=8.2
-       $ wget -q https://updates.xcp-ng.org/8/xcp-ng-$VER.repo -O xcp-ng-$VER.repo
-       $ wget -q https://updates.xcp-ng.org/8/SHA256SUMS -O SHA256SUMS
-       $ wget -q https://updates.xcp-ng.org/8/SHA256SUMS.asc -O SHA256SUMS.asc
+       $ wget -qO SHA256SUMS       https://updates.xcp-ng.org/8/SHA256SUMS
+       $ wget -qO SHA256SUMS.asc   https://updates.xcp-ng.org/8/SHA256SUMS.asc
+       $ wget -qO xcp-ng-$VER.repo https://updates.xcp-ng.org/8/xcp-ng-$VER.repo
        # Check the integrity and origin of the repository file:
        # https://docs.xcp-ng.org/project/mirrors/#check-a-repository-repo-file
        $ cp xcp-ng-$VER.repo /etc/yum.repos.d/xcp-ng.repo
@@ -21,7 +21,7 @@ https://docs.xcp-ng.org/installation/upgrade/
        $ find /etc \( -name "*.rpmnew" -or -name "*.rpmsave" ! -name "logrotate.cron.rpmsave" \)
        # These files are likely candidates:
        $ diff /etc/yum.repos.d/xcp-ng.repo /etc/yum.repos.d/xcp-ng.repo.rpmnew
-       $ mv /etc/yum.repos.d/xcp-ng.repo.rpmnew /etc/yum.repos.d/xcp-ng.repo
+       $ mv   /etc/yum.repos.d/xcp-ng.repo.rpmnew /etc/yum.repos.d/xcp-ng.repo
        $ diff /etc/sysconfig/xencommons /etc/sysconfig/xencommons.rpmsave
        # Use vi to update /etc/sysconfig/xencommons to preserve XEN_DOM0_UUID
 [X] 5. $ reboot

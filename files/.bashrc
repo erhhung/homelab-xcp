@@ -79,6 +79,9 @@ syncdate() {
   date -s "${date}Z"
 }
 
+# ip output in color
+alias ip='ip -c=auto'
+
 # parse_xe_output [--quote] [param1 param2 ...]
 # e.g. xe vm-list | parse_xe_output uuid name-label
 # param values of each object, each quoted if --quote specified,
@@ -162,6 +165,9 @@ export_xe_vars() {
 
     # parse CSV into key value lines
     tags=$(parse_xe_tags <<< "$line")
+
+    # ignore duplicated VMs tagged by continuous replication
+    grep -qi 'Continuous Replication' <<< "$tags" && continue
 
     var=($(grep -P '^'${3,,}'\s' <<< "$tags"))
     [ "$var" ] || continue # ignore if untagged

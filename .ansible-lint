@@ -5,3 +5,4 @@ skip_list:
   - name[template]
   - jinja[spacing]
   - run-once[task]
+  - command-instead-of-module

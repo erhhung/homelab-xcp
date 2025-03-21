@@ -12,11 +12,15 @@
   ansible.builtin.command: >-
     xe pif-list --minimal params={{ item }} IP={{ ansible_host }}
   loop:
+    # IMPORTANT! the set facts task below
+    # relies on the order of these items
     - uuid
     - host-uuid
     - host-name-label
     - DNS
     - other-config
+  # this task could take a while when there
+  # are busy workloads running on the hosts
   timeout: 60
   register: pif_params
   changed_when: false

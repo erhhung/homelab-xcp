@@ -79,7 +79,7 @@ export ANSIBLE_CONFIG=./ansible.cfg
     ansible-playbook files.yml
     ```
 
-Alternatively, **run all 4 playbooks** automatically in order:
+Alternatively, **run all playbooks** automatically in order:
 
 ```bash
 # pass options like -v and --step
@@ -93,4 +93,13 @@ Output from `play.sh` will be logged in "`ansible.log`".
 * If you encounter the following error, it means you're not using ansible-core version < 2.17.  
   Make sure you follow the [Requirements](#Requirements) and install Ansible in a Python virtual environment.
 
-    `SyntaxError: future feature annotations is not defined`
+    ```
+    SyntaxError: future feature annotations is not defined
+    ```
+
+* Ansible's [ad-hoc commands](https://docs.ansible.com/ansible/latest/command_guide/intro_adhoc.html#managing-services) are useful in these scenarios.
+  For example:
+
+    ```bash
+    ansible xcphosts -m ansible.builtin.raw -b -a "yum update"
+    ```
