@@ -4,3 +4,4 @@
 **/.ansible/collections/
 **/.venv/
 **/*.log
+uv.lock

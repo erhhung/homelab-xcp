@@ -10,13 +10,16 @@ is **CentOS 7.5**, which only makes available **Python versions 2.7.5 and 3.6** 
 This necessitates the use of **ansible-core version < 2.17** (via `pip3 install "ansible < 10"`)  
 _(see list of [Ansible releases](https://docs.ansible.com/ansible/latest/reference_appendices/release_and_maintenance.html#ansible-community-changelogs))_.
 
-Create a **Python virtualenv** and install the Ansible packages:
+Create a **Python virtualenv** and install the Ansible packages
+(using [uv](https://docs.astral.sh/uv/) is highly recommended):
 
 ```bash
-python3 -m venv .venv
+python3 -m venv .venv # or `uv venv`
 . .venv/bin/activate
+
 pip3 install -U pip
-pip3 install -r requirements.txt
+# pyproject.toml should be kept in-sync with requirements.txt
+pip3 install -r requirements.txt # or `uv sync`
 ```
 
 Since XCP-ng is installed without private key authentication for SSH, Ansible requires the `sshpass`  
