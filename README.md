@@ -30,11 +30,12 @@ program to pass the `ansible_ssh_password` from Vault. Install via `brew install
 The Ansible Vault password is stored in macOS Keychain under item "`XCP-ng`" for account "`ansible-vault`".
 
 ```bash
-export ANSIBLE_CONFIG=./ansible.cfg
+export ANSIBLE_CONFIG="./ansible.cfg"
 VAULTFILE="group_vars/all/vault.yml"
 
 ansible-vault create $VAULTFILE
 ansible-vault edit   $VAULTFILE
+ansible-vault view   $VAULTFILE
 ```
 
 Variables stored in Ansible Vault:
@@ -46,7 +47,7 @@ Variables stored in Ansible Vault:
 Set the config variable first for the `ansible-playbook` commands below:
 
 ```bash
-export ANSIBLE_CONFIG=./ansible.cfg
+export ANSIBLE_CONFIG="./ansible.cfg"
 ```
 
 1. Install Python 3.6 on all hosts
@@ -93,16 +94,18 @@ Output from `play.sh` will be logged in "`ansible.log`".
 
 ## Troubleshooting
 
-* If you encounter the following error, it means you're not using ansible-core version < 2.17.  
+1. If you encounter the following error, it means you're not using ansible-core version < 2.17.  
   Make sure you follow the [Requirements](#Requirements) and install Ansible in a Python virtual environment.
 
     ```
     SyntaxError: future feature annotations is not defined
     ```
 
-* Ansible's [ad-hoc commands](https://docs.ansible.com/ansible/latest/command_guide/intro_adhoc.html#managing-services) are useful in these scenarios.
+2. Ansible's [ad-hoc commands](https://docs.ansible.com/ansible/latest/command_guide/intro_adhoc.html#managing-services) are useful in these scenarios.
   For example:
 
     ```bash
     ansible xcphosts -m ansible.builtin.raw -b -a "yum update"
+    ansible xcphosts -m ansible.builtin.raw -b -a "ethtool eth0 |
+        awk '/^\s+((Speed|Duplex|Link).+)$/ {NF++; print \$0}'"
     ```

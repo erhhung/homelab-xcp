@@ -12,7 +12,7 @@
   pre_tasks:
     - name: Is Python 3 already installed?
       # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/raw_module.html
-      ansible.builtin.raw: "{{ python3_path }} --version"
+      ansible.builtin.raw: "{{ python3_path }} --version 2> /dev/null"
       register: check_result
       ignore_errors: true
       changed_when: false
