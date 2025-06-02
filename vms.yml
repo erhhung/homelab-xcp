@@ -1,0 +1,31 @@
+---
+- name: Configure VM settings
+  hosts: xcp1
+  gather_facts: false
+  vars_files:
+    - vars/vms.yml
+  tasks:
+    # https://docs.xcp-ng.org/guides/autostart-vm
+    - name: Enable auto-start VMs
+      # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/shell_module.html
+      ansible.builtin.shell: |
+        # run Bash to load .bashrc in order to
+        # use exported functions and variables
+        exec /bin/bash -l <<'EOT'
+
+        HOSTS=({{ auto_start_vms | join(' ') }})
+        for vm in "${HOSTS[@]}"; do
+          uuid_var="UUID_${vm^^}"
+
+          uuid="${!uuid_var}"
+          [ "${uuid}" ] || {
+            echo >&2 "Unknown VM: $vm"
+            exit 1
+          }
+          xe vm-param-set \
+             uuid="$uuid" \
+             other-config:auto_poweron=true
+        done
+        EOT
+      changed_when: true
+  any_errors_fatal: true

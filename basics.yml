@@ -1,6 +1,6 @@
 ---
 - name: Configure host settings
-  tags: system
+  tags: host
   hosts: xcphosts
   gather_facts: false
   become: true
@@ -60,6 +60,51 @@
         locale_language != system_language
       changed_when: true
 
+    - name: Enable emergency mode auto-continue
+      vars:
+        service_dir: /etc/systemd/system/emergency.service.d
+        timeout_sec: 30
+      block:
+        - name: Create "{{ service_dir | basename }}/"
+          # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/file_module.html
+          ansible.builtin.file:
+            path: "{{ service_dir }}"
+            state: directory
+            mode: "0755"
+
+        - name: Create "override.conf" file
+          # https://docs.ansible.com/ansible/latest/collections/community/general/ini_file_module.html
+          community.general.ini_file:
+            path: "{{ service_dir }}/override.conf"
+            section: Service
+            # item.values (in dot-notation) causes this to be written instead:
+            # ExecStart=<built-in method values of dict object at 0x110a0c140>
+            option: "{{ item['option'] }}"
+            values: "{{ item['values'] }}"
+            no_extra_spaces: true
+            state: present
+            mode: "0644"
+          loop:
+            - option: ExecStart
+              values:
+                - " # Clear existing entries"
+                - >-
+                  /usr/bin/sh -c "echo
+                  'Entering emergency mode. Press Ctrl+C to cancel auto-continue.';
+                  sleep {{ timeout_sec }}"
+            - option: TimeoutStartSec
+              values:
+                - "{{ timeout_sec }}"
+          loop_control:
+            label: "{{ item.option }}"
+          notify: Reload systemd config files
+  handlers:
+    - name: Reload systemd config files
+      # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/systemd_service_module.html
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+  any_errors_fatal: true
+
 - name: Configure network settings
   tags: network
   hosts: xcphosts
@@ -97,3 +142,4 @@
           - other-config:domain={{ search_domains | join(',') }}
       when: xcp_search_domains != search_domains
       changed_when: true
+  any_errors_fatal: true

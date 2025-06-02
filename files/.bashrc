@@ -258,11 +258,11 @@ vmstate() {
 
 stopvm() {
   [ -n "$2" ] && echo "Stopping $2..."
-  xe vm-shutdown uuid="$1"
+  xe vm-shutdown uuid="$1" "${@:3}" # --force
 }
 startvm() {
   [ -n "$2" ] && echo "Starting $2..."
-  xe vm-start uuid="$1"
+  xe vm-start uuid="$1" "${@:3}"
 }
 
 suspendvm() {
@@ -305,7 +305,8 @@ _names() {
              is-a-snapshot=false \
              params=tags | \
     sed -En 's/^.*host-name=([^,]+).*$/\1/p' | \
-    sort
+    sort | \
+    uniq
 }
 make_aliases() {
   local name
@@ -319,4 +320,4 @@ make_aliases() {
 }
 
 make_aliases
-alias startvms='startxo; startxoa; startrainier; startcosmos; startrancher'
+alias startvms='startxoa; startxo; startrainier; startcosmos; startrancher'

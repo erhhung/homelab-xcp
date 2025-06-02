@@ -66,3 +66,4 @@
         touchall -t 00 {{ copy_files | map('quote') | join(' ') }}
         EOT
       changed_when: true
+  any_errors_fatal: true

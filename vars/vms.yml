@@ -1,0 +1,12 @@
+# automatically start the following
+# VMs when their hosts are rebooted
+auto_start_vms:
+  - rainier
+  - cosmos
+  - xoa
+  - xo
+  - rancher
+  - k8s1
+  - k8s2
+  - k8s3
+  - k8s4
