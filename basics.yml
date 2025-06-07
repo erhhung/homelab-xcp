@@ -98,6 +98,48 @@
           loop_control:
             label: "{{ item.option }}"
           notify: Reload systemd config files
+
+    # https://xcp-ng.org/forum/topic/6211/intel-gpu-passthrough-question/12
+    # https://xcp-ng.org/forum/topic/3534/pci-passthrough-back-to-dom0
+    # NOTE: this task updates grub.cfg, and will require system reboot
+    - name: Enable GPU passthrough to VMs
+      # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/shell_module.html
+      ansible.builtin.shell: |
+        shopt -s globstar
+          set -o pipefail
+
+        dev=($(lspci -nn | grep VGA))
+        [ "$dev" ] || {
+          echo "No VGA device found!"
+          exit 9 # no change
+        }
+        echo "Found VGA device:"
+        echo "${dev[*]}"
+
+        # use globstar to find grub.cfg since
+        # it could be in different locations:
+        #   /boot/efi/EFI/xenserver/grub.cfg
+        #   /boot/grub/grub.cfg
+        grub=(/boot/**/grub.cfg)
+
+        regex="xen-pciback\.hide=(.*0000:${dev//./\\.}.*)"
+        egrep -q "$regex" $grub && {
+          echo "Already hidden."
+          exit 9 # no change
+        }
+
+        echo "Hiding from dom0:"
+        /opt/xensource/libexec/xen-cmdline \
+          --set-dom0 "xen-pciback.hide=(0000:$dev)"
+        echo "Confirm grub.cfg:"
+        egrep "$regex" $grub
+      args:
+        executable: /bin/bash
+      register: xen_cmd
+      changed_when: xen_cmd.rc == 0
+      failed_when: >-
+        xen_cmd.rc != 0 and
+        xen_cmd.rc != 9
   handlers:
     - name: Reload systemd config files
       # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/systemd_service_module.html

@@ -44,16 +44,10 @@ Variables stored in Ansible Vault:
 
 ## Playbooks
 
-Set the config variable first for the `ansible-playbook` commands below:
-
-```bash
-export ANSIBLE_CONFIG="./ansible.cfg"
-```
-
 1. Install Python 3.6 on all hosts
 
     ```bash
-    ansible-playbook python3.yml
+    ./play.sh python3
     ```
 
 2. Install extra packages into dom0
@@ -62,25 +56,35 @@ export ANSIBLE_CONFIG="./ansible.cfg"
     **Read the [rules](https://docs.xcp-ng.org/management/additional-packages/#-rules) first!**
 
     ```bash
-    ansible-playbook packages.yml
+    ./play.sh packages
     ```
 
 3. Configure host and network settings
 
     3.1. **Host**: host name, time zone, locale and language  
-    3.2. **Network**: DNS name servers and search domains
+    3.2. **Linux**: enable auto-continue in emergency mode  
+    3.3. **XCP-ng**: enable GPU passthrough dom0 to VMs  
+    3.4. **Network**: DNS name servers and search domains
 
     ```bash
-    ansible-playbook basics.yml
+    ./play.sh basics
     ```
 
 4. Set up admin user's home directory
 
     4.1. `~/isos` & `~/backups` symlinks  
-    4.2. User dot files and README files
+    4.2. user dot files and README files
 
     ```bash
-    ansible-playbook files.yml
+    ./play.sh files
+    ```
+
+5. Configure VM-specific settings
+
+    5.1. enable auto-starting VMs
+
+    ```bash
+    ./play.sh vms
     ```
 
 Alternatively, **run all playbooks** automatically in order:
