@@ -1,5 +1,3 @@
-# Emacs -*-Shell-Script-*- Mode
-
 # shellcheck disable=SC2148 # Tips depend on target shell
 # shellcheck disable=SC1091 # Not following: not input file
 # shellcheck disable=SC2086 # Double quote prevent globbing
@@ -153,7 +151,7 @@ parse_xe_tags() {
   sed -E 's/([^=]+)=([^,]+)(, )?/\1 \2\n/g'
 }
 
-# export_xe_vars "<xe-command>" <p:value-param|t:value-tag> <var-tag> <var-prefix>
+# export_xe_vars "<xe-command>" <p:value-param|t:value-tag> <p:var-param|t:var-tag> <var-prefix>
 # e.g. export_xe_vars "vm-list is-control-domain=false" p:name-label host-name name
 #      export_xe_vars "vm-list is-control-domain=false" t:backup-dir host-name path
 #      export NAME_XO="Xen Orchestra (xo)"
@@ -169,35 +167,75 @@ export_xe_vars() {
     # ignore duplicated VMs tagged by continuous replication
     grep -qi 'Continuous Replication' <<< "$tags" && continue
 
-    var=($(grep -P '^'${3,,}'\s' <<< "$tags"))
-    [ "$var" ] || continue # ignore if untagged
+    if [[ "$3" == p:* ]]; then
+      # variable name from param
+      # line[0] contains all tags
+      # name is always the last
+      var="${line[-1]}"
+      var="${var//-/_}"
 
-    # sanitize tag and make it uppercase
-    var="${var[*]:1}"; var="${var// /_}"
+    else # variable name from tag
+      var=($(grep -Pi ${3/#t:/^}'\s' <<< "$tags"))
+      [ "$var" ] || continue # ignore if untagged
+      var="${var[*]:1}" # sanitize
+      var="${var// /_}"
+    fi
 
     if [[ "$2" == p:* ]]; then
+      # variabe value from param
+      # line[0] contains all tags
+      # value is always the second
       value="${line[1]}"
-    else
-      value=($(grep -P ${2/#t:/^}'\s' <<< "$tags"))
+
+    else # variabe value from tag
+      value=($(grep -Pi ${2/#t:/^}'\s' <<< "$tags"))
       value="${value[*]:1}"
     fi
-    eval "export ${4:+${4^^}_}${var^^}=\"$value\""
 
-  done < <( # outputs lines with quoted values
-    params=tags; [[ "$2" == p:* ]] && params+=${2/#p:/,}
-    xe $1 params=$params | parse_xe_output --quote ${params//,/ }
+    eval "export ${4:+${4^^}_}${var^^}=\"$value\""
+  done < <(
+    params=tags
+    [[ "$2" == p:* ]] && params+=${2/#p:/,} #    value param
+    [[ "$3" == p:* ]] && params+=${3/#p:/,} # variable param
+    # outputs lines with quoted values
+    xe $1 params=$params | \
+      parse_xe_output --quote ${params//,/ }
+  )
+}
+
+# since it's not so easy from the CLI to determine
+# which host a VM is running on, export HOST_* vars
+# for all VMs set to the names of the XCP-ng hosts
+export_host_vars() {
+  local uuids
+  # lines with VM/host name (in lower case) and UUID
+  uuids=$(env | grep -E '^UUID_' | grep -v _ISOS_ | \
+    sed -En 's/^UUID_(HOST_)?(.+)=(.+)$/\L\2 \3/p')
+
+  local vm_uuid host_uuid
+  local vm_name host_name
+  while read -r vm_uuid host_uuid; do
+      vm_name=($(grep   $vm_uuid <<< "$uuids"))
+    host_name=($(grep $host_uuid <<< "$uuids"))
+
+    eval "export HOST_${vm_name^^}=$host_name"
+  done < <(
+    xe vm-list is-control-domain=false power-state=running \
+       params=uuid,resident-on | parse_xe_output uuid resident-on
   )
 }
 
 # NOTE: "host-name" and "backup-dir" are
 # CUSTOM TAGS manually added to all VMs
 
-# export UUID_* NAME_* PATH_* environment vars
-# verify: env | sort | egrep '(UUID|NAME|PATH)_'
-export_xe_vars "vm-list is-control-domain=false is-a-snapshot=false" t:backup-dir host-name path
-export_xe_vars "vm-list is-control-domain=false is-a-snapshot=false" p:name-label host-name name
-export_xe_vars "vm-list is-control-domain=false is-a-snapshot=false" p:uuid       host-name uuid
-export_xe_vars "sr-list type=iso"                                    p:uuid       host uuid_isos
+# export UUID_* NAME_* PATH_* HOST_* environment vars
+# verify: env | sort | grep -E '^(UUID|NAME|PATH|HOST)_'
+export_xe_vars host-list                                              p:uuid       p:name-label UUID_HOST
+export_xe_vars  "sr-list type=iso   shared=false"                     p:uuid       p:host       UUID_ISOS
+export_xe_vars  "vm-list is-control-domain=false is-a-snapshot=false" p:uuid       t:host-name  UUID
+export_xe_vars  "vm-list is-control-domain=false is-a-snapshot=false" p:name-label t:host-name  NAME
+export_xe_vars  "vm-list is-control-domain=false is-a-snapshot=false" t:backup-dir t:host-name  PATH
+export_host_vars # requires vars exported above
 
 alias listvms='xe vm-list is-control-domain=false is-a-snapshot=false'
 alias listsrs='xe sr-list'

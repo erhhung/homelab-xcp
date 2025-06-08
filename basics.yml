@@ -99,6 +99,7 @@
             label: "{{ item.option }}"
           notify: Reload systemd config files
 
+    # https://bobcares.com/blog/xcp-ng-gpu-passthrough
     # https://xcp-ng.org/forum/topic/6211/intel-gpu-passthrough-question/12
     # https://xcp-ng.org/forum/topic/3534/pci-passthrough-back-to-dom0
     # NOTE: this task updates grub.cfg, and will require system reboot

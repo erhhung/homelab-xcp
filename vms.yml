@@ -4,10 +4,27 @@
   gather_facts: false
   vars_files:
     - vars/vms.yml
+  pre_tasks:
+    - name: Get hosts VMs running on
+      # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/shell_module.html
+      ansible.builtin.shell: |
+        # run Bash to load .bashrc in order to
+        # use exported functions and variables
+        exec /bin/bash -l <<'EOT'
+        args=()
+        for vm in $(_names); do
+          host_var="HOST_${vm^^}"
+          host="${!host_var}"
+          [ "$host" ] && args+=($vm=$host)
+        done
+        # {"vm_name":"host_name",...}
+        jo "${args[@]}"
+        EOT
+      register: vm_hosts
+      changed_when: false
   tasks:
     # https://docs.xcp-ng.org/guides/autostart-vm
     - name: Enable auto-starting VMs
-      # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/shell_module.html
       ansible.builtin.shell: |
         # run Bash to load .bashrc in order to
         # use exported functions and variables
@@ -37,6 +54,54 @@
         done
         exit $rc
         EOT
+      register: param_set
+      changed_when: param_set.rc == 0
+      failed_when: >-
+        param_set.rc != 0 and
+        param_set.rc != 9
+
+    # https://bobcares.com/blog/xcp-ng-gpu-passthrough
+    - name: Enable GPU passthroughs
+      vars:
+        hosts: "{{ vm_hosts.stdout | from_json }}"
+      # need to set VM's "pci" param using ID of the
+      # graphics device on the host on which it runs
+      delegate_to: "{{ hosts[item] }}"
+      ansible.builtin.shell: |
+        # run Bash to load .bashrc in order to
+        # use exported functions and variables
+        exec /bin/bash -l <<'EOT'
+        set -o pipefail
+
+        uuid=$UUID_{{ item | upper }}
+        [ "$uuid" ] || {
+          echo >&2 "Unknown VM: {{ item }}"
+          exit 1
+        }
+        dev=($(lspci -nn | grep VGA))
+        [ "$dev" ] || {
+          echo >&2 "No VGA device found!"
+          exit 1
+        }
+        pci="0000:$dev"
+        xl pci-assignable-list | grep -q $pci || {
+          echo >&2 "dom0 still owns $dev!"
+          exit 1
+        }
+        rc=9 # no change
+
+        xe vm-param-get uuid="$uuid" \
+           param-name=other-config | \
+          grep -q "pci: 0/$pci" || {
+
+          xe vm-param-set uuid="$uuid" \
+             other-config:pci=0/$pci || \
+            exit $?
+          rc=0
+        }
+        exit $rc
+        EOT
+      loop: "{{ gpu_passthrough_vms }}"
       register: param_set
       changed_when: param_set.rc == 0
       failed_when: >-

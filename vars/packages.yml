@@ -7,3 +7,5 @@
 extra_yum_packages:
   - name: jq
     repo: epel
+  - name: jo
+    repo: epel
