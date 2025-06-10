@@ -152,8 +152,8 @@ parse_xe_tags() {
 }
 
 # export_xe_vars "<xe-command>" <p:value-param|t:value-tag> <p:var-param|t:var-tag> <var-prefix>
-# e.g. export_xe_vars "vm-list is-control-domain=false" p:name-label host-name name
-#      export_xe_vars "vm-list is-control-domain=false" t:backup-dir host-name path
+# e.g. export_xe_vars "vm-list is-control-domain=false" p:name-label t:host-name NAME
+#      export_xe_vars "vm-list is-control-domain=false" t:backup-dir t:host-name PATH
 #      export NAME_XO="Xen Orchestra (xo)"
 #      export PATH_XO="Xen Orchestra"
 export_xe_vars() {

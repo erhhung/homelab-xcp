@@ -71,15 +71,15 @@ trap "rm -f temp.yml" EXIT
     picks="$(jo -a -- "${args[@]}" <<< "")"
 
     # create picked version of main.yml
-    yq -PM 'load("/dev/stdin") as $picks  | map(
-             select(.tags as $t | $picks  | contains([$t]))
-                 )' main.yml <<< "$picks" | prettify > temp.yml
+    yq -PM 'load("/dev/stdin") as $picks | map(
+             select(.tags as $t | $picks[] == $t))'  \
+                    main.yml <<< "$picks" | prettify > temp.yml
 
     # remove all args that were picked
     eval "args=($(
-      yq -r 'map(.tags) as $picks | load("/dev/stdin")[]  |
-          select(. as $a | $picks | contains([$a]) | not) |
-          tojson' temp.yml <<< "$picks"))"
+      yq -r 'map(.tags) as $picks | load("/dev/stdin")[] |
+          select(. as $a | $picks | contains([$a]) | not)' \
+             temp.yml <<< "$picks"))"
 
     # play main.yml if nothing picked
     [ $(yq length temp.yml) -gt 0 ] && \

@@ -124,7 +124,7 @@
         grub=(/boot/**/grub.cfg)
 
         regex="xen-pciback\.hide=(.*0000:${dev//./\\.}.*)"
-        egrep -q "$regex" $grub && {
+        grep -Eq "$regex" $grub && {
           echo "Already hidden."
           exit 9 # no change
         }
@@ -133,7 +133,7 @@
         /opt/xensource/libexec/xen-cmdline \
           --set-dom0 "xen-pciback.hide=(0000:$dev)"
         echo "Confirm grub.cfg:"
-        egrep "$regex" $grub
+        grep -E "$regex" $grub
       args:
         executable: /bin/bash
       register: xen_cmd
