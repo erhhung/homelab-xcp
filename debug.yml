@@ -1,0 +1,16 @@
+---
+- name: Debug parsing values with units
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Parse memory size
+      vars:
+        memory: "0"
+        # human_to_bytes does not understand IEC units like GiB
+        # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/human_to_bytes_filter.html
+        bytes1: "{{ memory | ansible.builtin.human_to_bytes }}"
+        # convert_to_bytes does not understand SI units like GB
+        # https://docs.ansible.com/ansible/latest/collections/ovirt/ovirt/convert_to_bytes_filter.html
+        bytes2: "{{ memory | ovirt.ovirt.convert_to_bytes }}"
+      ansible.builtin.debug:
+        msg: bytes1={{ bytes1 }} bytes2={{ bytes2 }}

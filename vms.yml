@@ -12,11 +12,13 @@
         # use exported functions and variables
         exec /bin/bash -l <<'EOT'
         args=()
+
         for vm in $(_names); do
           host_var="HOST_${vm^^}"
           host="${!host_var}"
           [ "$host" ] && args+=($vm=$host)
         done
+
         # {"vm_name":"host_name",...}
         jo "${args[@]}"
         EOT
@@ -42,11 +44,11 @@
             echo >&2 "Unknown VM: $vm"
             exit 1
           }
-          xe vm-param-get uuid="$uuid" \
+          xe vm-param-get uuid=$uuid \
              param-name=other-config | \
             grep -q "auto_poweron: true" || {
 
-            xe vm-param-set uuid="$uuid" \
+            xe vm-param-set uuid=$uuid \
                other-config:auto_poweron=true || \
               exit $?
             rc=0
@@ -61,11 +63,13 @@
         param_set.rc != 9
 
     # https://bobcares.com/blog/xcp-ng-gpu-passthrough
+    # requires VMs to be running in
+    # order to determine their hosts
     - name: Enable GPU passthroughs
       vars:
         hosts: "{{ vm_hosts.stdout | from_json }}"
-      # need to set VM's "pci" param using ID of the
-      # graphics device on the host on which it runs
+      # need to set VM's "pci" param using ID of
+      # graphics device on host on which it runs
       delegate_to: "{{ hosts[item] }}"
       ansible.builtin.shell: |
         # run Bash to load .bashrc in order to
@@ -90,11 +94,11 @@
         }
         rc=9 # no change
 
-        xe vm-param-get uuid="$uuid" \
+        xe vm-param-get uuid=$uuid \
            param-name=other-config | \
           grep -q "pci: 0/$pci" || {
 
-          xe vm-param-set uuid="$uuid" \
+          xe vm-param-set uuid=$uuid \
              other-config:pci=0/$pci || \
             exit $?
           rc=0
@@ -102,6 +106,66 @@
         exit $rc
         EOT
       loop: "{{ gpu_passthrough_vms }}"
+      when: item in hosts
+      register: param_set
+      changed_when: param_set.rc == 0
+      failed_when: >-
+        param_set.rc != 0 and
+        param_set.rc != 9
+
+    # requires VMs to be stopped
+    # in order to set CPU/memory
+    - name: Configure VM CPU/memory
+      vars:
+        running: "{{ vm_hosts.stdout | from_json }}"
+        # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/dict2items_filter.html
+        items: "{{ vm_config | ansible.builtin.dict2items(key_name='host', value_name='settings') }}"
+      ansible.builtin.shell: |
+        # run Bash to load .bashrc in order to
+        # use exported functions and variables
+        exec /bin/bash -l <<'EOT'
+        set -o pipefail
+
+        uuid=$UUID_{{ item.host | upper }}
+        [ "$uuid" ] || {
+          echo >&2 "Unknown VM: {{ item.host }}"
+          exit 1
+        }
+        rc=9 # no change
+
+        vcpus="{{ item.settings.vcpus | default('') }}"
+        if [ "$vcpus" ]; then
+          _vcpus=$(xe vm-param-get uuid=$uuid param-name=VCPUs-max)
+
+          [ $_vcpus -eq $vcpus ] || {
+            xe vm-param-set uuid=$uuid \
+                              VCPUs-max=$vcpus \
+                       VCPUs-at-startup=$vcpus \
+              platform:cores-per-socket=$vcpus || exit $?
+            rc=0
+          }
+        fi
+
+        bytes="{{ item.settings.memory | default('') }}"
+        if [ "$bytes" ]; then
+           # https://docs.ansible.com/ansible/latest/collections/ovirt/ovirt/convert_to_bytes_filter.html
+           bytes="{{ item.settings.memory | ovirt.ovirt.convert_to_bytes }}"
+          _bytes=$(xe vm-param-get uuid=$uuid param-name=memory-static-max)
+
+          [ $_bytes -eq $bytes ] || {
+            xe vm-param-set uuid=$uuid \
+                memory-static-max=$bytes \
+               memory-dynamic-max=$bytes \
+               memory-dynamic-min=$bytes || exit $?
+            rc=0
+          }
+        fi
+        exit $rc
+        EOT
+      loop: "{{ items }}"
+      loop_control:
+        label: "{{ item.host }}"
+      when: item.host not in running
       register: param_set
       changed_when: param_set.rc == 0
       failed_when: >-

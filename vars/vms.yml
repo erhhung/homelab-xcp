@@ -16,3 +16,20 @@ gpu_passthrough_vms:
   - k8s2 # on xcp5
   - k8s3 # on xcp3
   - k8s4 # on xcp4
+
+vm_config:
+  rancher:
+    vcpus: 2
+    memory: 3GiB
+  k8s1:
+    vcpus: 5
+    memory: 14GiB
+  k8s2:
+    vcpus: 5
+    memory: 14GiB
+  k8s3:
+    vcpus: 4
+    memory: 28GiB
+  k8s4:
+    vcpus: 4
+    memory: 28GiB

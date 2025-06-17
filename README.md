@@ -81,7 +81,9 @@ Variables stored in Ansible Vault:
 
 5. Configure VM-specific settings
 
-    5.1. enable auto-starting VMs
+    5.1. enable auto-starting VMs  
+    5.2. enable GPU passthroughs _(relevant VMs must be **powered on**)_  
+    5.3. configure VM CPU/memory _(relevant VMs must be **powered off**)_
 
     ```bash
     ./play.sh vms
