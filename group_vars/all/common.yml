@@ -1,3 +1,5 @@
+pki_host: "{{ groups['_pki'] | first }}"
+
 ansible_user: root
 # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/env_lookup.html
 ansible_ssh_private_key_file: "{{ lookup('ansible.builtin.env', 'HOME') }}/.ssh/{{
@@ -6,3 +8,7 @@ ansible_ssh_common_args: -o StrictHostKeyChecking=no
 # ansible_ssh_password: {vault.yml}
 
 ansible_python_interpreter: /usr/bin/python3
+
+homelab_domain: fourteeners.local
+search_domains:
+  - "{{ homelab_domain }}"

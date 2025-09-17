@@ -1,7 +1,7 @@
  # https://docs.xcp-ng.org/management/additional-packages/
 ---
 - name: Install extra packages
-  hosts: xcphosts
+  hosts: xcp_hosts
   gather_facts: false
   become: true
   vars_files:

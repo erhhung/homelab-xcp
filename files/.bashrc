@@ -358,4 +358,4 @@ make_aliases() {
 }
 
 make_aliases
-alias startvms='startxoa; startxo; startrainier; startcosmos; startrancher'
+alias startvms='startxoa; startxo; startshasta; startcosmos'

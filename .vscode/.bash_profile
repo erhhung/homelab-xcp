@@ -8,8 +8,9 @@ source "$HOME/.bash_profile"
 export ANSIBLE_CONFIG="./ansible.cfg"
 export VAULTFILE="group_vars/all/vault.yml"
 
-alias ev='ansible-vault edit $VAULTFILE'
-alias vv='ansible-vault view $VAULTFILE'
+alias av='ansible-vault '
+alias ev='av edit $VAULTFILE'
+alias vv='av view $VAULTFILE'
 alias ap='ansible-playbook'
 alias al='ansible-lint'
 

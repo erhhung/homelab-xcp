@@ -5,9 +5,9 @@ stopcosmos
 backupcosmos
 startcosmos
 
-stoprainier
-backuprainier
-startrainier
+stopshasta
+backupshasta
+startshasta
 
 stopxo
 backupxo

@@ -1,29 +1,38 @@
+# this playbook is no longer neccessary in XCP-ng 8.3
+# because python3 is now included in the base install
 ---
 - name: Ensure Python 3 is installed
-  hosts: xcphosts
+  hosts: xcp_hosts
   gather_facts: false # skip because it requires Python
   become: true
   vars:
     # "yum search python3" shows python36
-    # is available on XCP-ng version 8.2.
+    # is available on XCP-ng version 8.3.
     python3_version: 3.6
     python3_package: python{{ python3_version | replace('.','') }}
-    python3_path: /usr/bin/{{ python3_package }}
+    python3_path: /usr/bin/python{{ python3_version }}
   pre_tasks:
     - name: Is Python 3 already installed?
       # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/raw_module.html
       ansible.builtin.raw: "{{ python3_path }} --version 2> /dev/null"
-      register: check_result
+      register: check_python3
+      ignore_errors: true
+      changed_when: false
+
+    - name: Does python3 symlink exist?
+      ansible.builtin.raw: test -L /usr/bin/python3
+      register: check_symlink
       ignore_errors: true
       changed_when: false
   tasks:
     - name: Install YUM package "{{ python3_package }}"
       ansible.builtin.raw: yum install -y {{ python3_package }}
-      when: check_result.rc
+      when: check_python3.rc
       changed_when: true
 
     - name: Link python3 to {{ python3_path }}
       ansible.builtin.raw: |
         update-alternatives --install /usr/bin/python3 python3 {{ python3_path }} 1
-      when: check_result.rc
+      when: check_symlink.rc
       changed_when: true
+  any_errors_fatal: true

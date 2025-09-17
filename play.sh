@@ -75,11 +75,14 @@ trap "rm -f temp.yml" EXIT
              select(.tags as $t | $picks[] == $t))'  \
                     main.yml <<< "$picks" | prettify > temp.yml
 
-    # remove all args that were picked
+    # remove all args that were picked (to_json
+    # is important to preserve args that contain
+    # spaces, like --start-at-task "some task")
     eval "args=($(
-      yq -r 'map(.tags) as $picks | load("/dev/stdin")[] |
-          select(. as $a | $picks | contains([$a]) | not)' \
-             temp.yml <<< "$picks"))"
+      yq -r 'map(.tags) as $picks | load("/dev/stdin") [] |
+          select(. as $a | $picks | contains([$a]) | not) |
+          to_json' temp.yml <<< "$picks"
+      ))"
 
     # play main.yml if nothing picked
     [ $(yq length temp.yml) -gt 0 ] && \
@@ -90,4 +93,42 @@ trap "rm -f temp.yml" EXIT
     args+=("main.yml")
   fi
 }
-ansible-playbook "${args[@]}" 2>&1 | tee ansible.log
+
+# get playbooks that will be run
+get_playbooks() {
+  local str list=($(
+    for arg in "$@"; do
+      if [[ $arg == main.yml || \
+            $arg == temp.yml ]]; then
+        yq 'map(.tags)[]' "$arg"
+      elif [[ $arg == *.yml ]]; then
+        echo "${arg%.yml}"
+      fi
+    done
+  ))
+  str="${list[*]}"
+  echo "${str// /,}"
+}
+
+# get tags specified by -t|--tags
+get_tags() {
+  local str list=($(
+    for i in $(seq $#); do
+      if [[ ${!i} == -t || \
+            ${!i} == --tags ]]; then
+        ((++i)); echo "${!i}"
+      elif [[ ${!i} == -t=* || \
+              ${!i} == --tags=* ]]; then
+        echo "${!i#*=}"
+      fi
+    done
+  ))
+  str="${list[*]}"
+  echo "${str// /,}"
+}
+
+# inject global vars to indicate playbooks that will
+# be run and tags on which to filter plays and tasks
+ansible-playbook                "${args[@]}"   \
+  -e PLAYBOOKS="$(get_playbooks "${args[@]}")" \
+  -e      TAGS="$(get_tags      "${args[@]}")" 2>&1 | tee ansible.log

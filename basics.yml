@@ -1,7 +1,7 @@
 ---
 - name: Configure host settings
   tags: host
-  hosts: xcphosts
+  hosts: xcp_hosts
   gather_facts: false
   become: true
   vars_files:
@@ -150,7 +150,7 @@
 
 - name: Configure network settings
   tags: network
-  hosts: xcphosts
+  hosts: xcp_hosts
   gather_facts: false
   become: true
   vars_files:
@@ -170,7 +170,7 @@
           - DNS={{ name_servers | join(',') }}
       when: xcp_name_servers != name_servers
       register: result
-      # It's normal to lose connection
+      # it's normal to lose connection
       failed_when: result.rc != 0 and
         'Lost connection to the server' not in result.stderr
       changed_when: true
@@ -185,4 +185,119 @@
           - other-config:domain={{ search_domains | join(',') }}
       when: xcp_search_domains != search_domains
       changed_when: true
+  any_errors_fatal: true
+
+- name: Suppress default MOTD message
+  tags: motd
+  hosts: xcp_hosts
+  gather_facts: false
+  vars:
+    motd_file: /etc/motd
+    motd_xs_file: "{{ motd_file }}.xs"
+    motd_xs_bak: "{{ motd_xs_file }}.bak"
+  pre_tasks:
+    - name: Check if MOTD backup exists?
+      # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/stat_module.html
+      ansible.builtin.stat:
+        path: "{{ motd_xs_bak }}"
+      register: motd_backup
+  tasks:
+    - name: Backup original motd.xs file
+      # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/copy_module.html
+      ansible.builtin.copy:
+        src: "{{ motd_xs_file }}"
+        dest: "{{ motd_xs_bak }}"
+        remote_src: true
+        mode: preserve
+      when: not motd_backup.stat.exists
+
+    - name: Truncate original motd file
+      ansible.builtin.copy:
+        content: ""
+        dest: "{{ item }}"
+        mode: "0644"
+      loop:
+        - "{{ motd_file    }}"
+        - "{{ motd_xs_file }}"
+  any_errors_fatal: true
+
+- name: Update XAPI certificates
+  tags: certs
+  hosts: xcp_hosts
+  gather_facts: false
+  vars:
+    xapi_pem_file: /etc/xensource/xapi-ssl.pem
+    xapi_pem_bak: "{{ xapi_pem_file }}.bak"
+  pre_tasks:
+    - name: Check if PEM backups exist?
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - "{{ xapi_pem_bak  }}" # the actual backup check
+        - "{{ xapi_pem_file }}" # get file mode and group
+      loop_control:
+        label: "{{ item | basename }}"
+      register: pem_backups
+
+    - name: Fetch certificates from PKI
+      run_once: true
+      block:
+        - name: Fetch cert files from PKI
+          delegate_to: "{{ pki_host }}"
+          ansible.builtin.command: cat certs/{{ item }}
+          loop:
+            - xcp.key
+            - xcp.pem # contains intermediate & root CA certs
+          register: cert_files
+          changed_when: false
+
+        - name: Set xapi_pem_data fact
+          # IMPORTANT: facts are not stored in ansible_facts
+          # on localhost--they're simply top-level variables
+          delegate_to: localhost
+          vars:
+            # for some reason using '\n' inside Jinja2
+            # expressions produces literal backslash-n
+            newline: "{{ '\n' }}"
+          ansible.builtin.set_fact:
+            # XCP-ng expects xapi-ssl.pem to contain
+            # both private key and certificate chain
+            # (original has empty line between them)
+            xapi_pem_data: |-
+              {{ cert_files.results[0].stdout | trim ~ newline }}
+              {{ cert_files.results[1].stdout | trim ~ newline }}
+  tasks:
+    - name: Backup existing certificates
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "{{ item }}.bak"
+        remote_src: true
+        mode: preserve
+      loop:
+        # make sure order is same
+        # as pem_backups.results!
+        - "{{ xapi_pem_file }}"
+      loop_control:
+        label: "{{ item | basename }}"
+        index_var: i
+      when: not pem_backups.results[i*2].stat.exists
+
+    - name: Update XAPI certificates
+      vars:
+        stat: "{{ pem_backups.results[1].stat }}"
+      ansible.builtin.copy:
+        content: "{{ xapi_pem_data }}"
+        dest: "{{ xapi_pem_file }}"
+        group: "{{ stat.gid }}"
+        mode: "{{ stat.mode }}"
+      loop:
+        - "{{ xapi_pem_file }}"
+      loop_control:
+        label: "{{ item | basename }}"
+      notify: Restart XAPI service
+  handlers:
+    - name: Restart XAPI service
+      ansible.builtin.systemd_service:
+        name: xapi
+        state: restarted
   any_errors_fatal: true

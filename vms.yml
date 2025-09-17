@@ -42,7 +42,7 @@
           uuid="${!uuid_var}"
           [ "${uuid}" ] || {
             echo >&2 "Unknown VM: $vm"
-            exit 1
+            continue
           }
           xe vm-param-get uuid=$uuid \
              param-name=other-config | \
@@ -80,7 +80,7 @@
         uuid=$UUID_{{ item | upper }}
         [ "$uuid" ] || {
           echo >&2 "Unknown VM: {{ item }}"
-          exit 1
+          exit 9
         }
         dev=($(lspci -nn | grep VGA))
         [ "$dev" ] || {
@@ -129,7 +129,7 @@
         uuid=$UUID_{{ item.host | upper }}
         [ "$uuid" ] || {
           echo >&2 "Unknown VM: {{ item.host }}"
-          exit 1
+          exit 9
         }
         rc=9 # no change
 

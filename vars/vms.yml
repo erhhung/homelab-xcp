@@ -1,7 +1,7 @@
 # automatically start the following
 # VMs when their hosts are rebooted
 auto_start_vms:
-  - rainier
+  - shasta
   - cosmos
   - xoa
   - xo
@@ -10,26 +10,47 @@ auto_start_vms:
   - k8s2
   - k8s3
   - k8s4
+  - k8s5
+  - k8s6
 
 gpu_passthrough_vms:
-  # k8s1 # on xcp5
-  - k8s2 # on xcp5
+  # k8s1 # on xcp6
+  # k8s2 # on xcp5
   - k8s3 # on xcp3
   - k8s4 # on xcp4
+  - k8s5 # on xcp5
+  - k8s6 # on xcp6
 
 vm_config:
-  rancher:
-    vcpus: 2
+  rancher: # xcp2
+    vcpus: 3
     memory: 3GiB
-  k8s1:
-    vcpus: 5
+    disk:
+      size: 50GiB
+      lv: 45G # g=GB/G=GiB
+  k8s1: # xcp6
+    vcpus: 10
+    memory: 22GiB
+    disk: &disk
+      size: 120GiB
+      lv: 53.785G # leaves 63.16G free, and 95% of that for data LV = 60G
+  k8s2: # xcp5
+    vcpus: 6
     memory: 14GiB
-  k8s2:
-    vcpus: 5
-    memory: 14GiB
-  k8s3:
+    disk: *disk
+  k8s3: # xcp3
     vcpus: 4
     memory: 28GiB
-  k8s4:
+    disk: *disk
+  k8s4: # xcp4
     vcpus: 4
     memory: 28GiB
+    disk: *disk
+  k8s5: # xcp5
+    vcpus: 6
+    memory: 14GiB
+    disk: *disk
+  k8s6: # xcp6
+    vcpus: 10
+    memory: 36GiB
+    disk: *disk

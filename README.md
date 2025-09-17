@@ -4,8 +4,8 @@ This project manages the configuration and user files for Erhhung's XCP-ng clust
 
 ## Requirements
 
-Since the XCP-ng cluster is currently on **XCP-ng version 8.2.1**, its underlying compatible Linux OS  
-is **CentOS 7.5**, which only makes available **Python versions 2.7.5 and 3.6** _(not installed by default)_.
+Since the XCP-ng cluster version is currently **8.3**, its underlying compatible Linux OS is **CentOS 7.5**,  
+which only makes available Python versions **2.7.5** and **3.6** _(installed by default on 8.3 and later only)_.
 
 This necessitates the use of **ansible-core version < 2.17** (via `pip3 install "ansible < 10"`)  
 _(see list of [Ansible releases](https://docs.ansible.com/ansible/latest/reference_appendices/release_and_maintenance.html#ansible-community-changelogs))_.
@@ -111,7 +111,7 @@ Output from `play.sh` will be logged in "`ansible.log`".
   For example:
 
     ```bash
-    ansible xcphosts -m ansible.builtin.raw -b -a "yum update"
-    ansible xcphosts -m ansible.builtin.raw -b -a "ethtool eth0 |
+    ansible xcp_hosts -m ansible.builtin.raw -b -a "yum update"
+    ansible xcp_hosts -m ansible.builtin.raw -b -a "ethtool eth0 |
         awk '/^\s+((Speed|Duplex|Link).+)$/ {NF++; print \$0}'"
     ```
