@@ -56,15 +56,24 @@ args=("$@")
 trap "rm -f temp.yml" EXIT
 
 [[ "${args[*]}" == *.yml* ]] || {
-  # check if last arg is tag-
   last=$(( ${#args[@]} -1 ))
 
+  # check if last arg is tag-
   if [[ $last -ge 0 && "${args[last]}" == *- ]]; then
     start="${args[last]%?}" args=("${args[@]::last}")
 
     # create sliced version of main.yml
-    START=$start yq '. as $d | .[] | select(.tags == env(START)) |
-               path[0] as $i |  $d | .[$i:]' main.yml | prettify > temp.yml
+    START=$start yq '. as $d | .[] | select(.tags == env(START))  |
+               path[0] as $i |  $d | .[$i :]' main.yml | prettify > temp.yml
+    args+=("temp.yml")
+
+  # check if last arg is -tag
+  elif [[ $last -ge 0 && "${args[last]}" == -* ]]; then
+    end="${args[last]#?}" args=("${args[@]::last}")
+
+    # create sliced version of main.yml
+    END=$end yq '. as $d | .[] | select(.tags == env(END)) |
+           path[0] as $i |  $d | .[: $i + 1]' main.yml | prettify > temp.yml
     args+=("temp.yml")
 
   elif [ "${args[*]}" ]; then

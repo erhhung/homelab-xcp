@@ -13,6 +13,19 @@ auto_start_vms:
   - k8s5
   - k8s6
 
+host_affinities:
+  shasta: xcp1
+  cosmos: xcp1
+  xoa: xcp1
+  xo: xcp2
+  rancher: xcp2
+  k8s1: xcp6
+  k8s2: xcp5
+  k8s3: xcp3
+  k8s4: xcp4
+  k8s5: xcp5
+  k8s6: xcp6
+
 gpu_passthrough_vms:
   # k8s1 # on xcp6
   # k8s2 # on xcp5
@@ -21,19 +34,22 @@ gpu_passthrough_vms:
   - k8s5 # on xcp5
   - k8s6 # on xcp6
 
+# VMs must be stopped in order to set CPU, memory, and
+# disk (disk.lv is for reference only: no playbooks in
+# this project will configure settings within each VM)
 vm_config:
   rancher: # xcp2
     vcpus: 3
-    memory: 3GiB
+    memory: 3.5GiB
     disk:
-      size: 50GiB
+      size: 50GiB # 46.95GiB usable
       lv: 45G # g=GB/G=GiB
   k8s1: # xcp6
     vcpus: 10
     memory: 22GiB
     disk: &disk
-      size: 120GiB
-      lv: 53.785G # leaves 63.16G free, and 95% of that for data LV = 60G
+      size: 125GiB # 121.95GiB usable
+      lv: 58.79G # leaves 63.16G free, and 95% of that for data LV = 60G
   k8s2: # xcp5
     vcpus: 6
     memory: 14GiB
@@ -53,4 +69,6 @@ vm_config:
   k8s6: # xcp6
     vcpus: 10
     memory: 36GiB
-    disk: *disk
+    disk:
+      size: 150GiB # 146.95GiB usable
+      lv: 83.79G # leaves 63.16G free, and 95% of that for data LV = 60G

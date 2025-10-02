@@ -1,0 +1,17 @@
+# set Option/Alt + arrow as word-jump
+"\e[1;3C":  forward-word # Alt+Right
+"\e[1;3D": backward-word # Alt+Left
+
+# other variants some terminals send
+"\e[1;5C":  forward-word # Ctrl+Right
+"\e[1;5D": backward-word # Ctrl+Left
+"\e[5C":    forward-word
+"\e[5D":   backward-word
+"\e\e[C":   forward-word
+"\e\e[D":  backward-word
+
+# ensure Meta (Option/Alt)
+# is handled as ESC-prefix
+set   input-meta on
+set  output-meta on
+set convert-meta off

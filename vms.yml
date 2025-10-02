@@ -5,7 +5,7 @@
   vars_files:
     - vars/vms.yml
   pre_tasks:
-    - name: Get hosts VMs running on
+    - name: Get running VM hosts
       # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/shell_module.html
       ansible.builtin.shell: |
         # run Bash to load .bashrc in order to
@@ -25,37 +25,65 @@
       register: vm_hosts
       changed_when: false
   tasks:
-    # https://docs.xcp-ng.org/guides/autostart-vm
-    - name: Enable auto-starting VMs
+    # VMs must be stopped in order
+    # to set CPU, memory, and disk
+    - name: Configure CPU/memory/disk
+      vars:
+        running: "{{ vm_hosts.stdout | from_json }}"
+        # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/dict2items_filter.html
+        items: "{{ vm_config | ansible.builtin.dict2items(key_name='host', value_name='settings') }}"
       ansible.builtin.shell: |
         # run Bash to load .bashrc in order to
         # use exported functions and variables
         exec /bin/bash -l <<'EOT'
-        set -o pipefail
+        set -eo pipefail
 
-        HOSTS=({{ auto_start_vms | join(' ') }})
+        uuid=$UUID_{{ item.host | upper }}
+        [ "$uuid" ] || {
+          echo >&2 "Unknown VM: {{ item.host }}"
+          exit 9
+        }
         rc=9 # no change
 
-        for vm in "${HOSTS[@]}"; do
-          uuid_var="UUID_${vm^^}"
+         vcpus={{ item.settings.vcpus }}
+        _vcpus=$(xe vm-param-get uuid=$uuid param-name=VCPUs-max)
 
-          uuid="${!uuid_var}"
-          [ "${uuid}" ] || {
-            echo >&2 "Unknown VM: $vm"
-            continue
-          }
-          xe vm-param-get uuid=$uuid \
-             param-name=other-config | \
-            grep -q "auto_poweron: true" || {
+        [ $_vcpus -eq $vcpus ] || {
+          xe vm-param-set        uuid=$uuid  \
+                            VCPUs-max=$vcpus \
+                     VCPUs-at-startup=$vcpus \
+            platform:cores-per-socket=$vcpus || exit $?
+          rc=0
+        }
 
-            xe vm-param-set uuid=$uuid \
-               other-config:auto_poweron=true || \
-              exit $?
-            rc=0
-          }
-        done
+         # https://docs.ansible.com/ansible/latest/collections/ovirt/ovirt/convert_to_bytes_filter.html
+         bytes={{ item.settings.memory | ovirt.ovirt.convert_to_bytes }}
+        _bytes=$(xe vm-param-get uuid=$uuid param-name=memory-static-max)
+
+        [ $_bytes -eq $bytes ] || {
+          xe vm-param-set uuid=$uuid  \
+             memory-static-max=$bytes \
+            memory-dynamic-max=$bytes \
+            memory-dynamic-min=$bytes || exit $?
+          rc=0
+        }
+
+        vbd_uuid=$(xe vbd-list --minimal  vm-uuid=$uuid device=xvda)
+        vdi_uuid=$(xe vdi-list --minimal vbd-uuids=$vbd_uuid)
+
+         bytes={{ item.settings.disk.size | ovirt.ovirt.convert_to_bytes }}
+        _bytes=$(xe vdi-param-get uuid=$vdi_uuid param-name=virtual-size)
+
+        [ $_bytes -eq $bytes ] || {
+          xe vdi-resize uuid=$vdi_uuid disk-size=$bytes || exit $?
+          rc=0
+        }
         exit $rc
         EOT
+      loop: "{{ items }}"
+      loop_control:
+        label: "{{ item.host }}"
+      when: item.host not in running
       register: param_set
       changed_when: param_set.rc == 0
       failed_when: >-
@@ -113,59 +141,81 @@
         param_set.rc != 0 and
         param_set.rc != 9
 
-    # requires VMs to be stopped
-    # in order to set CPU/memory
-    - name: Configure VM CPU/memory
-      vars:
-        running: "{{ vm_hosts.stdout | from_json }}"
-        # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/dict2items_filter.html
-        items: "{{ vm_config | ansible.builtin.dict2items(key_name='host', value_name='settings') }}"
+    # https://docs.xcp-ng.org/guides/autostart-vm
+    - name: Enable auto-starting VMs
       ansible.builtin.shell: |
         # run Bash to load .bashrc in order to
         # use exported functions and variables
         exec /bin/bash -l <<'EOT'
         set -o pipefail
 
-        uuid=$UUID_{{ item.host | upper }}
-        [ "$uuid" ] || {
-          echo >&2 "Unknown VM: {{ item.host }}"
-          exit 9
-        }
+        HOSTS=({{ auto_start_vms | join(' ') }})
         rc=9 # no change
 
-        vcpus="{{ item.settings.vcpus | default('') }}"
-        if [ "$vcpus" ]; then
-          _vcpus=$(xe vm-param-get uuid=$uuid param-name=VCPUs-max)
+        for vm in "${HOSTS[@]}"; do
+          uuid_var="UUID_${vm^^}"
 
-          [ $_vcpus -eq $vcpus ] || {
+          uuid="${!uuid_var}"
+          [ "${uuid}" ] || {
+            echo >&2 "Unknown VM: $vm"
+            continue
+          }
+          xe vm-param-get uuid=$uuid \
+             param-name=other-config | \
+            grep -q "auto_poweron: true" || {
+
             xe vm-param-set uuid=$uuid \
-                              VCPUs-max=$vcpus \
-                       VCPUs-at-startup=$vcpus \
-              platform:cores-per-socket=$vcpus || exit $?
+               other-config:auto_poweron=true || \
+              exit $?
             rc=0
           }
-        fi
-
-        bytes="{{ item.settings.memory | default('') }}"
-        if [ "$bytes" ]; then
-           # https://docs.ansible.com/ansible/latest/collections/ovirt/ovirt/convert_to_bytes_filter.html
-           bytes="{{ item.settings.memory | ovirt.ovirt.convert_to_bytes }}"
-          _bytes=$(xe vm-param-get uuid=$uuid param-name=memory-static-max)
-
-          [ $_bytes -eq $bytes ] || {
-            xe vm-param-set uuid=$uuid \
-                memory-static-max=$bytes \
-               memory-dynamic-max=$bytes \
-               memory-dynamic-min=$bytes || exit $?
-            rc=0
-          }
-        fi
+        done
         exit $rc
         EOT
-      loop: "{{ items }}"
-      loop_control:
-        label: "{{ item.host }}"
-      when: item.host not in running
+      register: param_set
+      changed_when: param_set.rc == 0
+      failed_when: >-
+        param_set.rc != 0 and
+        param_set.rc != 9
+
+    - name: Assign VM host affinities
+      vars:
+        hosts: "{{ vm_hosts.stdout | from_json }}"
+        # set affinity only if VM not running
+        # or it's already on the desired host
+        vms: |
+          {% set vms = {} %}
+          {% for vm, host in host_affinities.items()  %}
+          {% if  vm not in hosts or host == hosts[vm] %}
+          {%   set _ = vms.update({vm: host}) %}
+          {% endif  %}
+          {% endfor %}
+          {{ vms    }}
+      ansible.builtin.shell: |
+        # run Bash to load .bashrc in order to
+        # use exported functions and variables
+        exec /bin/bash -l <<'EOT'
+        set -o pipefail
+
+        rc=9 # no change
+
+        while read vm vm_uuid host host_uuid; do
+          [ "$vm_uuid" ] && [ "$host_uuid" ] || {
+            echo >&2 "Unknown VM/host: $vm/$host"
+            continue
+          }
+          value="$(xe vm-param-get uuid=$vm_uuid param-name=affinity)"
+          [ "$value" == "$host_uuid" ] || {
+            xe vm-param-set uuid=$vm_uuid affinity=$host_uuid || exit $?
+            rc=0
+          }
+        done <<EOF
+        {% for vm, host in vms.items() %}
+        {{ vm }} $UUID_{{ vm | upper }} {{ host }} $UUID_HOST_{{ host | upper }}
+        {% endfor %}
+        EOF
+        exit $rc
+        EOT
       register: param_set
       changed_when: param_set.rc == 0
       failed_when: >-

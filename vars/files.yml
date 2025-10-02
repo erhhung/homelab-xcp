@@ -1,5 +1,6 @@
 copy_files:
   - .bashrc
+  - .inputrc
   - .gnupg/
   - .ssh/
   - BACKUP_README
