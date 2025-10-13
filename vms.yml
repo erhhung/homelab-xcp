@@ -95,10 +95,10 @@
     # order to determine their hosts
     - name: Enable GPU passthroughs
       vars:
-        hosts: "{{ vm_hosts.stdout | from_json }}"
+        hosts_: "{{ vm_hosts.stdout | from_json }}"
       # need to set VM's "pci" param using ID of
       # graphics device on host on which it runs
-      delegate_to: "{{ hosts[item] }}"
+      delegate_to: "{{ hosts_[item] }}"
       ansible.builtin.shell: |
         # run Bash to load .bashrc in order to
         # use exported functions and variables
@@ -134,7 +134,7 @@
         exit $rc
         EOT
       loop: "{{ gpu_passthrough_vms }}"
-      when: item in hosts
+      when: item in hosts_
       register: param_set
       changed_when: param_set.rc == 0
       failed_when: >-
@@ -180,13 +180,13 @@
 
     - name: Assign VM host affinities
       vars:
-        hosts: "{{ vm_hosts.stdout | from_json }}"
+        hosts_: "{{ vm_hosts.stdout | from_json }}"
         # set affinity only if VM not running
         # or it's already on the desired host
         vms: |
           {% set vms = {} %}
-          {% for vm, host in host_affinities.items()  %}
-          {% if  vm not in hosts or host == hosts[vm] %}
+          {% for vm, host in host_affinities.items() %}
+          {% if  vm not in hosts_ or host == hosts_[vm] %}
           {%   set _ = vms.update({vm: host}) %}
           {% endif  %}
           {% endfor %}
