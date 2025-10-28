@@ -138,9 +138,7 @@
         executable: /bin/bash
       register: xen_cmd
       changed_when: xen_cmd.rc == 0
-      failed_when: >-
-        xen_cmd.rc != 0 and
-        xen_cmd.rc != 9
+      failed_when: xen_cmd.rc not in [0,9]
   handlers:
     - name: Reload systemd config files
       # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/systemd_service_module.html

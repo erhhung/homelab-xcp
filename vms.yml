@@ -86,9 +86,7 @@
       when: item.host not in running
       register: param_set
       changed_when: param_set.rc == 0
-      failed_when: >-
-        param_set.rc != 0 and
-        param_set.rc != 9
+      failed_when: param_set.rc not in [0,9]
 
     # https://bobcares.com/blog/xcp-ng-gpu-passthrough
     # requires VMs to be running in
@@ -137,9 +135,7 @@
       when: item in hosts_
       register: param_set
       changed_when: param_set.rc == 0
-      failed_when: >-
-        param_set.rc != 0 and
-        param_set.rc != 9
+      failed_when: param_set.rc not in [0,9]
 
     # https://docs.xcp-ng.org/guides/autostart-vm
     - name: Enable auto-starting VMs
@@ -174,9 +170,7 @@
         EOT
       register: param_set
       changed_when: param_set.rc == 0
-      failed_when: >-
-        param_set.rc != 0 and
-        param_set.rc != 9
+      failed_when: param_set.rc not in [0,9]
 
     - name: Assign VM host affinities
       vars:
@@ -218,7 +212,5 @@
         EOT
       register: param_set
       changed_when: param_set.rc == 0
-      failed_when: >-
-        param_set.rc != 0 and
-        param_set.rc != 9
+      failed_when: param_set.rc not in [0,9]
   any_errors_fatal: true
