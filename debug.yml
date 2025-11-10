@@ -1,7 +1,6 @@
 ---
 - name: Debug parsing values with units
   hosts: localhost
-  gather_facts: false
   tasks:
     - name: Parse memory size
       vars:

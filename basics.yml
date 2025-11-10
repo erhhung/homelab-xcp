@@ -2,7 +2,6 @@
 - name: Configure host settings
   tags: host
   hosts: xcp_hosts
-  gather_facts: false
   become: true
   vars_files:
     - vars/basics.yml
@@ -144,12 +143,10 @@
       # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/systemd_service_module.html
       ansible.builtin.systemd_service:
         daemon_reload: true
-  any_errors_fatal: true
 
 - name: Configure network settings
   tags: network
   hosts: xcp_hosts
-  gather_facts: false
   become: true
   vars_files:
     - vars/basics.yml
@@ -183,12 +180,10 @@
           - other-config:domain={{ search_domains | join(',') }}
       when: xcp_search_domains != search_domains
       changed_when: true
-  any_errors_fatal: true
 
 - name: Suppress default MOTD message
   tags: motd
   hosts: xcp_hosts
-  gather_facts: false
   vars:
     motd_file: /etc/motd
     motd_xs_file: "{{ motd_file }}.xs"
@@ -217,12 +212,10 @@
       loop:
         - "{{ motd_file    }}"
         - "{{ motd_xs_file }}"
-  any_errors_fatal: true
 
 - name: Update XAPI certificates
   tags: certs
   hosts: xcp_hosts
-  gather_facts: false
   vars:
     xapi_pem_file: /etc/xensource/xapi-ssl.pem
     xapi_pem_bak: "{{ xapi_pem_file }}.bak"
@@ -298,4 +291,3 @@
       ansible.builtin.systemd_service:
         name: xapi
         state: restarted
-  any_errors_fatal: true

@@ -1,7 +1,6 @@
 ---
 - name: Configure VM settings
   hosts: xcp1
-  gather_facts: false
   vars_files:
     - vars/vms.yml
   pre_tasks:
@@ -213,4 +212,3 @@
       register: param_set
       changed_when: param_set.rc == 0
       failed_when: param_set.rc not in [0,9]
-  any_errors_fatal: true

@@ -15,6 +15,7 @@
 # shellcheck disable=SC2046 # Quote to avoid word splitting
 # shellcheck disable=SC2128 # Expanding array without index
 
+set -o pipefail
 cd "$(dirname "$0")"
 
 # require given commands

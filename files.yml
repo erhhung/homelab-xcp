@@ -2,7 +2,6 @@
 - name: Set up admin user's home directory
   tags: home
   hosts: xcp_hosts
-  gather_facts: false
   vars_files:
     - vars/files.yml
   pre_tasks:
@@ -107,4 +106,3 @@
         touchall -t 00 {{ copy_files | map('quote') | join(' ') }}
         EOT
       changed_when: true
-  any_errors_fatal: true
