@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 
-# vault password stored in macOS "login" Keychain
-# under name "XCP-ng" for account "ansible-vault"
-exec security find-generic-password -l XCP-ng -w
+# Vault password is stored in macOS "login" Keychain
+# under account "ansible-vault" and service "XCP-ng"
+exec security find-generic-password -a ansible-vault -s XCP-ng -w

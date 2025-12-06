@@ -36,6 +36,7 @@ _reqcmds yq jo || exit $?
 use_uv=$(command -v uv 2> /dev/null)
 
 export ANSIBLE_CONFIG=./ansible.cfg
+export ANSIBLE_PRIVATE_KEY_FILE=$HOME/.ssh/$USER.pem
 export ANSIBLE_FORCE_COLOR=true
 
 echo -e "\nActivating Python virtual environment..."
