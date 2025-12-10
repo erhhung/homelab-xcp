@@ -2,7 +2,7 @@ pki_host: "{{ groups['pki_any'] | first }}"
 
 ansible_user: root
 # no longer setting SSH key file here so that AWX can inject it
-# via credentials while play.sh exports ANSIBLE_PRIVATE_KEY_FILE
+# by credentials while play.sh exports ANSIBLE_PRIVATE_KEY_FILE
 # ansible_ssh_private_key_file: >-
 #   {{ lookup('ansible.builtin.env', 'HOME') }}/.ssh/{{
 #      lookup('ansible.builtin.env', 'USER') }}.pem
