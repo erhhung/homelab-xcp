@@ -1,0 +1,6 @@
+# this playbook is only run within an AWX workflow
+# where "temp.yml" has already been created under
+# /var/lib/awx/tmp/ by the previous job template
+---
+- name: Include playbook of selected playbooks
+  ansible.builtin.import_playbook: /var/lib/awx/tmp/homelab-xcp/temp.yml

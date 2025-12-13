@@ -1,0 +1,86 @@
+# this playbook is only run within an AWX workflow
+# as the initial job template to create "temp.yml"
+# under /var/lib/awx/tmp/ containing playbooks to
+# run based on the user's Select Playbooks survey
+---
+- name: Create temporary runlist
+  hosts: localhost
+  vars:
+    temp_dir: /var/lib/awx/tmp/homelab-xcp
+  pre_tasks:
+    # PLAYBOOKS is a survey variable
+    - name: Show PLAYBOOKS extra var
+      ansible.builtin.debug:
+        var: PLAYBOOKS | default(none)
+
+    - name: Assert PLAYBOOKS defined
+      ansible.builtin.assert:
+        that:
+          # PLAYBOOKS is a list:
+          - PLAYBOOKS is defined
+          - PLAYBOOKS is sequence
+          - PLAYBOOKS is not string
+
+    - name: Make sure temp dir exists
+      # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/file_module.html
+      ansible.builtin.file:
+        path: "{{ temp_dir }}"
+        state: directory
+        mode: "0755"
+  tasks:
+    - name: Create temporary runlist
+      vars:
+        # strip numbering and padding added
+        # for showing as ordered list in UI
+        # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/regex_replace_filter.html
+        playbooks: "{{ PLAYBOOKS | map('ansible.builtin.regex_replace', '\\s*(\\d+\\. )?','') }}"
+      # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/shell_module.html
+      # noqa risky-shell-pipe
+      ansible.builtin.shell: |
+        cd /runner/project
+
+        args=({{ '' if 'ALL' in playbooks else playbooks | join(' ') }})
+        ./runlist.sh "${args[@]}" || exit 1
+
+        [[ " ${args[*]} " == *" DEBUG "* ]] && {
+          # if debug was the only playbook selected, delete temp.yml
+          # since runlist.sh has added all playbooks due to debug.yml
+          # not in main.yml, but we just want to run debug.yml alone
+          [ "${args[*]}" == DEBUG ] && \
+            rm   -f temp.yml || \
+            echo >> temp.yml
+
+          cat<<'EOT' >> temp.yml
+        - name: Include Ansible debugging playbook
+          ansible.builtin.import_playbook: debug.yml
+          tags: debug
+        EOT
+        }
+        # change playbook paths to /runner/project/* (Git project root)
+        # because awx.execute.yml loads temp.yml from /var/lib/awx/tmp/
+        perl -pX -i -e 's|(?<=import_playbook:\s)|/runner/project/|g' temp.yml
+        mv -f temp.yml {{ temp_dir }}
+      args:
+        executable: /bin/bash
+      changed_when: true
+  post_tasks:
+    - name: Output temporary runlist
+      vars:
+        # https://docs.ansible.com/projects/ansible/latest/collections/ansible/builtin/file_lookup.html
+        runlist: "{{ lookup('ansible.builtin.file', temp_dir ~ '/temp.yml') | from_yaml }}"
+        # using json_query because map(attribute=...) doesn't work on keys containing dots:
+        # https://docs.ansible.com/projects/ansible/latest/collections/community/general/json_query_filter.html
+        playbooks: '{{ runlist | community.general.json_query(
+          ''[]."ansible.builtin.import_playbook"'') }}'
+      block:
+        # list of /runner/project/*.yml
+        - name: Output temporary runlist
+          ansible.builtin.debug:
+            var: playbooks
+
+        - name: Pass variables downstream
+          # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/set_stats_module.html
+          ansible.builtin.set_stats:
+            data:
+              # this should overwrite PLAYBOOKS extra var passed from workflow level
+              PLAYBOOKS: "{{ playbooks | map('ansible.builtin.regex_replace', '^.+/|.yml$','') }}"

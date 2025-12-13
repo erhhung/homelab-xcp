@@ -1,0 +1,24 @@
+# this playbook is only run within an AWX workflow
+# as the final job template to clean up "temp.yml"
+# under /var/lib/awx/tmp/; a separate job template
+# will fail the workflow if awx.execute.yml failed
+---
+- name: Delete temporary runlist
+  hosts: localhost
+  vars:
+    temp_dir: /var/lib/awx/tmp/homelab-xcp
+  tasks:
+    - name: Delete temporary runlist
+      # https://docs.ansible.com/projects/ansible/latest/collections/ansible/builtin/file_module.html
+      ansible.builtin.file:
+        path: "{{ temp_dir }}/temp.yml"
+        state: absent
+
+- name: Fail workflow on failure
+  tags: failure
+  hosts: localhost
+  tasks:
+    - name: Fail workflow on failure
+      # https://docs.ansible.com/projects/ansible/latest/collections/ansible/builtin/fail_module.html
+      ansible.builtin.fail:
+        msg: Playbook failed.

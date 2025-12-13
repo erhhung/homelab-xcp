@@ -1,8 +1,8 @@
 ---
-- name: Debug parsing values with units
+- name: Debug parsing size with units
   hosts: localhost
   tasks:
-    - name: Parse memory size
+    - name: Parse memory size with units
       vars:
         memory: "0"
         # human_to_bytes does not understand IEC units like GiB
@@ -13,3 +13,27 @@
         bytes2: "{{ memory | ovirt.ovirt.convert_to_bytes }}"
       ansible.builtin.debug:
         msg: bytes1={{ bytes1 }} bytes2={{ bytes2 }}
+
+- name: Test AWX workflow behaviors
+  tags: awx
+  hosts: localhost
+  tasks:
+    # PLAYBOOKS is passed in by play.sh when
+    # running from CLI, and by awx.setup.yml
+    # when running our AWX project workflows
+    - name: Show PLAYBOOKS var
+      ansible.builtin.debug:
+        var: PLAYBOOKS | default(none)
+
+    - name: Show run/skip tags
+      vars:
+        tagging:
+          # ansible_run_tags is a `frozenset` in Python,
+          # so must coerce to list to compare to a list
+          all_tags: "{{ ansible_run_tags | list == ['all'] }}"
+          # ansible_run_tags == ['all'] if NO tags were provided
+          run_tags: "{{ ansible_run_tags }}"
+          # ansible_skip_tags == [] if NO skip tags were provided
+          skip_tags: "{{ ansible_skip_tags }}"
+      ansible.builtin.debug:
+        var: tagging
