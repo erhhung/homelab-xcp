@@ -3,6 +3,7 @@
 **/.ansible/roles/
 **/.ansible/collections/
 **/.venv/
+**/.env
 **/*.log
 temp.yml
 uv.lock

@@ -1,0 +1,16 @@
+# this playbook is only run within an AWX workflow
+# as the final job template to clean up "temp.yml"
+# created under /var/lib/awx/tmp/
+---
+- name: Delete temporary runlist
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    temp_dir: /var/lib/awx/tmp/homelab-xcp
+  tasks:
+    - name: Delete temporary runlist
+      # https://docs.ansible.com/projects/ansible/latest/collections/ansible/builtin/file_module.html
+      ansible.builtin.file:
+        path: "{{ temp_dir }}/temp.yml"
+        state: absent
