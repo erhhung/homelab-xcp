@@ -35,6 +35,7 @@
   ansible.builtin.command: >-
     xe sr-list --minimal params=uuid name-label='{{ item }}'
   loop:
+    - Shared ISO library
     - Backup storage
   register: sr_uuids
   changed_when: false
@@ -53,7 +54,8 @@
     # NOTE: xe --minimal returns CSV delimited by backslash-comma
     xcp_name_servers: "{{ csv3 | split('\\,') if csv3 else [] }}"
     xcp_search_domains: "{{ csv4 | split('\\,') if csv4 else [] }}"
-    backup_sr_uuid: "{{ sr_uuids.results[0].stdout }}"
+    shared_isos_sr_uuid: "{{ sr_uuids.results[0].stdout }}"
+    backups_sr_uuid: "{{ sr_uuids.results[1].stdout }}"
 
 - name: Print gathered facts
   # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/debug_module.html
@@ -65,4 +67,5 @@
       xcp_host_name_os: "{{ xcp_host_name_os }}"
       xcp_name_servers: "{{ xcp_name_servers | join(',') }}"
       xcp_search_domains: "{{ xcp_search_domains | join(',') }}"
-      backup_sr_uuid: "{{ backup_sr_uuid }}"
+      shared_isos_sr_uuid: "{{ shared_isos_sr_uuid }}"
+      backups_sr_uuid: "{{ backups_sr_uuid }}"

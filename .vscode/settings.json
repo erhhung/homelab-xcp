@@ -6,5 +6,10 @@
       "args": ["--rcfile", ".vscode/.bash_profile"],
       "icon": "terminal-bash"
     }
+  },
+  "files.associations": {
+    "*.json.tftpl": "json",
+    "*.yaml.tftpl": "yaml",
+    "*.sh.tftpl": "shellscript"
   }
 }

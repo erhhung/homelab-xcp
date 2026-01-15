@@ -1,3 +1,6 @@
+# xcpng_root_pass: {vault.yml}
+#  xoa_admin_pass: {vault.yml}
+
 pki_host: "{{ groups['pki_any'] | first }}"
 
 ansible_user: root
@@ -6,8 +9,11 @@ ansible_user: root
 # ansible_ssh_private_key_file: >-
 #   {{ lookup('ansible.builtin.env', 'HOME') }}/.ssh/{{
 #      lookup('ansible.builtin.env', 'USER') }}.pem
-ansible_ssh_common_args: -o StrictHostKeyChecking=no
-# ansible_ssh_password: {vault.yml}
+ansible_ssh_password: "{{ xcpng_root_pass }}"
+ansible_ssh_common_args: >-
+  -o StrictHostKeyChecking=no
+  -o ConnectTimeout=5
+  -o LogLevel=error
 
 ansible_python_interpreter: /usr/bin/python3
 

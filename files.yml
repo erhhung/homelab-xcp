@@ -13,27 +13,23 @@
     - name: Define mounted SR paths with facts
       # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/set_fact_module.html
       ansible.builtin.set_fact:
-        iso_sr_path: /srv/iso
-        backup_sr_path: /run/sr-mount/{{ backup_sr_uuid or '.not.found' }}
+        local_isos_sr_path: /srv/iso
+        shared_isos_sr_path: /run/sr-mount/{{ shared_isos_sr_uuid or '.not.found' }}
+        backups_sr_path: /run/sr-mount/{{ backups_sr_uuid or '.not.found' }}
 
     - name: Check if ISO SR directory exists
       # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/stat_module.html
       ansible.builtin.stat:
-        path: "{{ iso_sr_path }}"
+        path: "{{ local_isos_sr_path }}"
       register: iso_sr_dir
-
-    - name: Check if backup SR directory exists
-      ansible.builtin.stat:
-        path: "{{ backup_sr_path }}"
-      register: backup_sr_dir
   tasks:
     - name: Create local ISO image repository
       when: not iso_sr_dir.stat.exists
       block:
-        - name: Create ISO SR directory {{ iso_sr_path }}
+        - name: Create ISO SR directory {{ local_isos_sr_path }}
           # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/file_module.html
           ansible.builtin.file:
-            path: "{{ iso_sr_path }}"
+            path: "{{ local_isos_sr_path }}"
             state: directory
             mode: "0755"
           notify: Touch symlinks and copied files
@@ -47,12 +43,12 @@
               - type=iso
               - host-uuid={{ xcp_host_uuid }}
               - name-label=Local ISO library
-              - device-config:location={{ iso_sr_path }}
+              - device-config:location={{ local_isos_sr_path }}
               - device-config:legacy_mode=true
               - other-config:auto-scan=true
               - content-type=iso
               - shared=false
-          register: create_iso_sr
+          register: create_isos_sr
           changed_when: true
 
         # apparently `xe sr-create` ignores name-description
@@ -61,25 +57,26 @@
             argv:
               - xe
               - sr-param-set
-              - uuid={{ create_iso_sr.stdout }}
+              - uuid={{ create_isos_sr.stdout }}
               # don't quote value (not running from shell)
               - name-description=Local ISO image repository
           changed_when: true
 
-    - name: Create symlink ~/isos -> {{ iso_sr_path }}
+    - name: Create symlink to SR directory
       ansible.builtin.file:
-        src: "{{ iso_sr_path }}"
-        dest: "{{ ansible_facts['user_dir'] }}/isos"
+        src: "{{ item.src }}"
+        dest: "{{ ansible_facts['user_dir'] }}/{{ item.dest }}"
         state: link
       notify: Touch symlinks and copied files
-
-    - name: Create symlink ~/backups to backup SR
-      ansible.builtin.file:
-        src: "{{ backup_sr_path }}"
-        dest: "{{ ansible_facts['user_dir'] }}/backups"
-        state: link
-      when: backup_sr_dir.stat.exists
-      notify: Touch symlinks and copied files
+      loop:
+        - src: "{{ local_isos_sr_path }}"
+          dest: local-isos
+        - src: "{{ shared_isos_sr_path }}"
+          dest: shared-isos
+        - src: "{{ backups_sr_path }}"
+          dest: backups
+      loop_control:
+        label: "{{ item.dest }}"
 
     - name: Copy dot files and README files
       # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/copy_module.html
@@ -99,9 +96,10 @@
         # use exported functions and variables
         exec /bin/bash -l <<'EOT'
         # zero out file times MM:ss
-        _touch -t 00 . isos backups \
-          {{ iso_sr_path }} \
-          {{ iso_sr_path | dirname }}
+        _touch  -t 00 . backups \
+             local-isos shared-isos \
+          {{ local_isos_sr_path }}  \
+          {{ local_isos_sr_path | dirname }}
         # now do the same again but recursively
         touchall -t 00 {{ copy_files | map('quote') | join(' ') }}
         EOT

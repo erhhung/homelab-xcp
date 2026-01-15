@@ -1,0 +1,176 @@
+#cloud-config
+
+# https://canonical-subiquity.readthedocs-hosted.com/en/latest/reference/autoinstall-reference.html
+autoinstall:
+  version: 1
+
+  # https://canonical-subiquity.readthedocs-hosted.com/en/latest/reference/autoinstall-reference.html#source
+  source:
+    id: ubuntu-server-minimal
+
+  # https://canonical-subiquity.readthedocs-hosted.com/en/latest/reference/autoinstall-reference.html#kernel
+  kernel:
+    flavor: hwe
+
+  # https://canonical-subiquity.readthedocs-hosted.com/en/latest/reference/autoinstall-reference.html#identity
+  identity:
+    realname: Erhhung Yuan
+    username: erhhung
+    password: "${PWD_HASH}"
+    hostname: ${HOSTNAME}
+
+  # https://canonical-subiquity.readthedocs-hosted.com/en/latest/reference/autoinstall-reference.html#ssh
+  ssh:
+    install-server: true
+    allow-pw: false
+    authorized-keys:
+      - "${SSH_PUBKEY} erhhung@github/116230521 # ssh-import-id gh:erhhung"
+
+  locale: en_US.UTF-8
+  keyboard:
+    layout: us
+
+  # https://canonical-subiquity.readthedocs-hosted.com/en/latest/reference/autoinstall-reference.html#timezone
+  timezone: America/Los_Angeles
+
+  # https://canonical-subiquity.readthedocs-hosted.com/en/latest/reference/autoinstall-reference.html#action-based-configuration
+  storage:
+    swap:
+      size: 0
+
+    # https://curtin.readthedocs.io/en/latest/topics/storage.html
+    version: 2
+    config:
+      - type: disk
+        id: primary-disk
+        path: /dev/xvda
+        name: ""
+        ptable: gpt
+        grub_device: false
+        wipe: superblock-recursive
+        preserve: false
+
+      - type: partition
+        id: esp-partition
+        device: primary-disk
+        # path: /dev/xvda1
+        number: 1
+        offset: 1048576 # 1MiB
+        size: 1073741824 # 1GiB
+        flag: boot
+        grub_device: true
+        wipe: superblock
+        preserve: false
+
+      - type: format
+        id: efi-filesystem
+        volume: esp-partition
+        fstype: fat32
+        preserve: false
+
+      - type: partition
+        id: boot-partition
+        device: primary-disk
+        # path: /dev/xvda2
+        number: 2
+        offset: 1074790400 # 1MiB+1GiB
+        size: 2147483648 # 2GiB
+        wipe: superblock
+        preserve: false
+
+      - type: format
+        id: boot-filesystem
+        volume: boot-partition
+        fstype: ext4
+        preserve: false
+
+      - type: partition
+        id: lvm-partition
+        device: primary-disk
+        # path: /dev/xvda3
+        number: 3
+        offset: 3222274048 # 1MiB+3GiB
+        size: -1 # use remaining space
+        wipe: superblock
+        preserve: false
+
+      - type: lvm_volgroup
+        id: ubuntu-vg
+        name: ubuntu-vg
+        devices:
+          - lvm-partition
+        preserve: false
+
+      - type: lvm_partition
+        id: ubuntu-lv
+        name: ubuntu-lv
+        volgroup: ubuntu-vg
+        path: /dev/ubuntu-vg/ubuntu-lv
+        size: ${LV_BYTES}
+        wipe: superblock
+        preserve: false
+
+      - type: format
+        id: root-filesystem
+        volume: ubuntu-lv
+        fstype: ext4
+        preserve: false
+
+      # mount order matters! mount /
+      # before /boot, then /boot/efi
+      - type: mount
+        id: root-mount
+        device: root-filesystem
+        path: /
+
+      - type: mount
+        id: boot-mount
+        device: boot-filesystem
+        path: /boot
+
+      - type: mount
+        id: efi-mount
+        device: efi-filesystem
+        path: /boot/efi
+
+  # https://canonical-subiquity.readthedocs-hosted.com/en/latest/reference/autoinstall-reference.html#network
+  network:
+    version: 2
+    ethernets:
+      enX0:
+        addresses:
+          - ${IP_ADDRESS}/24
+        nameservers:
+          addresses:
+            - 192.168.0.1
+            - 9.9.9.9
+            - 1.1.1.1
+          search:
+            - fourteeners.local
+        routes:
+          - to: default
+            via: 192.168.0.1
+
+  # https://canonical-subiquity.readthedocs-hosted.com/en/latest/reference/autoinstall-reference.html#updates
+  updates: all
+
+  # https://canonical-subiquity.readthedocs-hosted.com/en/latest/reference/autoinstall-reference.html#late-commands
+  late-commands:
+    # configure NTP
+    - curtin in-target --target=/target -- sed -i 's/^#NTP=$/NTP=pool.ntp.org/' /etc/systemd/timesyncd.conf
+    - curtin in-target --target=/target -- systemctl enable systemd-timesyncd
+
+    # security updates
+    - curtin in-target --target=/target -- dpkg-reconfigure -f noninteractive unattended-upgrades
+
+    # install guest tools
+    - curtin in-target --target=/target -- curl -fsSLo /tmp/tools.tar.gz http://pacific.fourteeners.local/xcp-ng/guest-tools-linux-7.30.0.tar.gz
+    - curtin in-target --target=/target -- tar -C /tmp -xzf /tmp/tools.tar.gz
+    - curtin in-target --target=/target -- /tmp/Linux/install.sh -n || true
+
+    # clean up packages
+    - curtin in-target --target=/target -- apt-get autoremove -y
+    - curtin in-target --target=/target -- apt-get autoclean
+
+  # https://canonical-subiquity.readthedocs-hosted.com/en/latest/reference/autoinstall-reference.html#shutdown
+  shutdown: reboot

@@ -1,5 +1,54 @@
 ---
+- name: Create Kubernetes VMs
+  tags: create
+  hosts: localhost
+  vars_files:
+    - vars/vms.yml
+  vars:
+    tf_path: "{{ playbook_dir }}/terraform"
+    tfvars_files:
+      - creds.tfvars
+      - k8s.tfvars
+  pre_tasks:
+    - name: Create .tfvars file
+      vars:
+        tfvars: "{{ tf_path }}/{{ item }}"
+      # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/template_module.html
+      ansible.builtin.template:
+        src: "{{ tfvars }}.j2"
+        dest: "{{ tfvars }}"
+        mode: "0644"
+      loop: "{{ tfvars_files }}"
+
+    # # create K8s0 VM for testing
+    # - name: Apply k8s.tfvars.test
+    #   vars:
+    #     tfvars: "{{ tf_path }}/k8s.tfvars"
+    #   # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/copy_module.html
+    #   ansible.builtin.copy:
+    #     src: "{{ tfvars }}.test"
+    #     dest: "{{ tfvars }}"
+    #     mode: preserve
+  tasks:
+    - name: Create Kubernetes VMs
+      # https://docs.ansible.com/projects/ansible/latest/collections/community/general/terraform_module.html
+      community.general.terraform:
+        project_path: "{{ tf_path }}"
+        backend_config_files:
+          - backend.config
+        # use wrapper script that executes
+        # OpenTofu from a Docker container
+        binary_path: "{{ tf_path }}/tf.sh"
+        init_reconfigure: true
+        provider_upgrade: true
+        variables_files: "{{ tfvars_files }}"
+        state: present
+      # installing OSes on new
+      # VMs could take a while
+      timeout: 1800
+
 - name: Configure VM settings
+  tags: configure
   hosts: xcp1
   vars_files:
     - vars/vms.yml

@@ -1,0 +1,12 @@
+vm_specs = [
+  {
+    name        = "K8s0"
+    description = "RKE2 Cluster Node"
+    host        = "xcp2"
+    vcpus       = 2
+    memory_gb   = 2
+    disk_gb     = 11
+    lv_gb       = 4
+    ip_address  = "192.168.0.170"
+  },
+]
