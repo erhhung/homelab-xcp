@@ -1,0 +1,103 @@
+# curl -s -H "X-API-Key: $PFSENSE_API_KEY" \
+#   https://pfsense.fourteeners.local/api/v2/services/dns_resolver/host_overrides | \
+#   jq --arg HOST '^(rainier|shasta|cosmos|rancher|xoa?|(xcp|k8s)\d+)$' \
+#      --arg DOMAIN fourteeners.local \
+#     '[  .data[] | select(.host | test($HOST)) | . as $r |
+#      { ip:.ip[], host, domain, desc:.descr, aliases: (.aliases  |
+#      if . then map({ host, domain, desc:.descr }) else . end) } |
+#      delpaths([
+#        paths | select(. as $p | $p[-1] as $k | ($r | getpath($p)) as $v |
+#        $k == "aliases" and $v == null or $k == "domain" and $v == $DOMAIN
+#      )]) ]' | \
+#   yq -pj -oy '{ "pfsense_dns_records": sort_by(.ip) }' | \
+#   sed -E 's/^([[:space:]]+- ip:.+)$/\n\1/' # add newlines
+
+pfsense_dns_records:
+  - ip: 192.168.0.151
+    host: xcp1
+    desc: &xcp-desc >-
+      XCP-ng Cluster Node
+  - ip: 192.168.0.152
+    host: xcp2
+    desc: *xcp-desc
+  - ip: 192.168.0.161
+    host: xcp3
+    desc: *xcp-desc
+  - ip: 192.168.0.162
+    host: xcp4
+    desc: *xcp-desc
+  - ip: 192.168.0.165
+    host: xcp5
+    desc: *xcp-desc
+  - ip: 192.168.0.166
+    host: xcp6
+    desc: *xcp-desc
+  - ip: 192.168.0.167
+    host: xcp7
+    desc: *xcp-desc
+  - ip: 192.168.0.168
+    host: xcp8
+    desc: *xcp-desc
+
+  - ip: 192.168.0.153
+    host: xoa
+    desc: Xen Orchestra
+  - ip: 192.168.0.163
+    host: xo
+    desc: Xen Orchestra
+
+  - ip: 192.168.0.132
+    host: rainier
+    desc: Windows DC
+  - ip: 192.168.0.133
+    host: shasta
+    desc: Samba ADDC
+
+  - ip: 192.168.0.154
+    host: cosmos
+    desc: SSH Server
+    aliases:
+      - host: ssh
+        domain: erhhungyuan.com
+        desc: SSH Server
+      - host: home
+        domain: erhhungyuan.com
+        desc: SSH Server
+      - host: duplicati
+        desc: Duplicati Cloud Backup
+
+  - ip: 192.168.0.164
+    host: rancher
+    desc: Rancher Server
+    aliases:
+      - host: harbor
+        desc: Container Registry
+
+  - ip: 192.168.0.170
+    host: k8s0
+    desc: &k8s-desc >-
+      Kubernetes Cluster Node
+  - ip: 192.168.0.171
+    host: k8s1
+    desc: *k8s-desc
+  - ip: 192.168.0.172
+    host: k8s2
+    desc: *k8s-desc
+  - ip: 192.168.0.173
+    host: k8s3
+    desc: *k8s-desc
+  - ip: 192.168.0.174
+    host: k8s4
+    desc: *k8s-desc
+  - ip: 192.168.0.175
+    host: k8s5
+    desc: *k8s-desc
+  - ip: 192.168.0.176
+    host: k8s6
+    desc: *k8s-desc
+  - ip: 192.168.0.177
+    host: k8s7
+    desc: *k8s-desc
+  - ip: 192.168.0.178
+    host: k8s8
+    desc: *k8s-desc

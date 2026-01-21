@@ -1,0 +1,49 @@
+# https://github.com/pfrest/pfSense-pkg-RESTAPI
+# https://firewall.fourteeners.local/api/v2/documentation
+---
+- name: Create pfSense DNS records
+  hosts: localhost
+  vars_files:
+    - vars/dns.yml
+  vars:
+    api_base: "https://pfsense.{{ homelab_domain }}/api/v2"
+    headers:
+      # pfsense_api_key: {vault.yml}
+      X-API-Key: "{{ pfsense_api_key }}"
+  pre_tasks:
+    - name: Read existing DNS records
+      # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/uri_module.html
+      ansible.builtin.uri:
+        # https://firewall.fourteeners.local/api/v2/documentation#/SERVICES/getServicesDNSResolverHostOverridesEndpoint
+        url: "{{ api_base }}/services/dns_resolver/host_overrides"
+        headers: "{{ headers }}"
+        return_content: true
+      register: overrides
+  tasks:
+    - name: Update DNS host override
+      vars:
+        existing: "{{ overrides.json.data }}"
+        override: "{{ item }}"
+      # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/include_tasks_module.html
+      ansible.builtin.include_tasks: tasks/dns/upsert.yml
+      loop: "{{ pfsense_dns_records }}"
+      loop_control:
+        label: "{{ item.ip }}|{{ item.host }}"
+
+    - name: Check need apply changes
+      ansible.builtin.uri:
+        # https://firewall.fourteeners.local/api/v2/documentation#/SERVICES/getServicesDNSResolverApplyEndpoint
+        url: "{{ api_base }}/services/dns_resolver/apply"
+        headers: "{{ headers }}"
+        return_content: true
+      register: needs_apply
+      changed_when: not needs_apply.json.data.applied
+      notify: Apply pfSense DNS changes
+  handlers:
+    - name: Apply pfSense DNS changes
+      ansible.builtin.uri:
+        # https://firewall.fourteeners.local/api/v2/documentation#/SERVICES/postServicesDNSResolverApplyEndpoint
+        url: "{{ api_base }}/services/dns_resolver/apply"
+        method: POST
+        headers: "{{ headers }}"
+      changed_when: true

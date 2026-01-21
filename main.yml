@@ -15,6 +15,10 @@
   ansible.builtin.import_playbook: files.yml
   tags: files
 
+- name: Include pfSense DNS records playbook
+  ansible.builtin.import_playbook: dns.yml
+  tags: dns
+
 - name: Include VM configurations playbook
   ansible.builtin.import_playbook: vms.yml
   tags: vms

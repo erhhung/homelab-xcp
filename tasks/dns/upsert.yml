@@ -1,0 +1,83 @@
+# update host override in pfSense DNS Resolver
+# (requires pfSense REST API package to be installed and API
+# key created: https://github.com/pfrest/pfSense-pkg-RESTAPI)
+#
+# pass the following vars:
+#   existing:   <required> existing overrides
+#     {id,ip,host,domain,descr,aliases}
+#   override:   <required> host override spec
+#     ip:       <required> host IP address
+#     host:     <required> host name
+#     domain:   [optional] default=<homelab_domain>
+#     desc:     [optional] host description
+#     aliases:  [optional] list of alias objects
+#       host:   <required> alias host name
+#       domain: [optional] default=<homelab_domain>
+#       desc:   [optional] host description
+---
+- name: Update DNS host overrides
+  become: false
+  block:
+    - name: Locate existing override
+      vars:
+        override_: "{{ existing | selectattr('ip', '==', [override.ip]) }}"
+      # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/set_fact_module.html
+      ansible.builtin.set_fact:
+        existing_override: |
+          {% set hor = {} %}
+          {% if override_ is truthy %}
+          {%   set hor  = override_ | first %}
+          {%   if  hor.aliases %}
+          {%     set _ = hor.update({'aliases': hor.aliases | map(
+                   'ansible.builtin.combine', {
+                     'id':        omit,
+                     'parent_id': omit,
+                   },
+                 )}) %}
+          {%   endif %}
+          {% endif   %}
+          {{ hor     }}
+
+    - name: >-
+        {{ 'Create' if method == 'POST' else 'Update' }} DNS
+        host override: {{ override.ip }}|{{ override.host }}
+      vars:
+        method: "{{ 'POST' if existing_override is falsy else 'PATCH' }}"
+        # must retain key order in order
+        # for to_json comparison to work
+        override_payload: |
+          {% set aliases = [] %}
+          {% set payload = {
+            'id':      existing_override.id if method == 'PATCH' else none,
+            'host':    override.host,
+            'domain':  override.domain | default(homelab_domain),
+            'ip':     [override.ip],
+            'descr':   override.desc   | default(none),
+            'aliases': none,
+          }  %}
+          {% if override.aliases is defined  %}
+          {%   for alias in override.aliases %}
+          {%     set _ = aliases.append({
+                   'host':   alias.host,
+                   'domain': alias.domain | default(homelab_domain),
+                   'descr':  alias.desc   | default(none),
+                 })   %}
+          {%   endfor %}
+          {%   set _ = payload.update({'aliases': aliases}) %}
+          {% endif   %}
+          {{ payload }}
+      # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/uri_module.html
+      ansible.builtin.uri:
+        # https://firewall.fourteeners.local/api/v2/documentation#/SERVICES/postServicesDNSResolverHostOverrideEndpoint
+        # https://firewall.fourteeners.local/api/v2/documentation#/SERVICES/patchServicesDNSResolverHostOverrideEndpoint
+        url: https://pfsense.{{ homelab_domain }}/api/v2/services/dns_resolver/host_override
+        method: "{{ method }}"
+        headers:
+          # pfsense_api_key: {vault.yml}
+          X-API-Key: "{{ pfsense_api_key }}"
+        body: "{{ override_payload }}"
+        body_format: json
+      when: >-
+        existing_override | to_json !=
+        override_payload  | to_json
+      changed_when: true
