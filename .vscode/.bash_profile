@@ -51,6 +51,11 @@ plays() {
   yq '.[].tags' "$root/main.yml"
 }
 
+# use latest version of GNU Make
+command -v gmake &> /dev/null && {
+  alias make='gmake'
+}
+
 # enable completions if yq is installed
 command -v yq &> /dev/null && {
   _complete_play()  { _complete_tags main;  }

@@ -47,7 +47,7 @@ Variables stored in Ansible Vault:
 1. Install Python 3.6 on all hosts
 
     ```bash
-    ./play.sh python3
+    make python3
     ```
 
 2. Install extra packages into dom0
@@ -56,7 +56,7 @@ Variables stored in Ansible Vault:
     **Read the [rules](https://docs.xcp-ng.org/management/additional-packages/#-rules) first!**
 
     ```bash
-    ./play.sh packages
+    make packages
     ```
 
 3. Configure host and network settings
@@ -67,7 +67,7 @@ Variables stored in Ansible Vault:
     3.4. **Network**: DNS name servers and search domains
 
     ```bash
-    ./play.sh basics
+    make basics
     ```
 
 4. Set up admin user's home directory
@@ -76,13 +76,13 @@ Variables stored in Ansible Vault:
     4.2. user dot files and README files
 
     ```bash
-    ./play.sh files
+    make files
     ```
 
 5. Create static DNS records in pfSense
 
     ```bash
-    ./play.sh dns
+    make dns
     ```
 
 6. Create Kubernetes cluster VMs  
@@ -93,17 +93,24 @@ Variables stored in Ansible Vault:
     6.3. configure VM CPU/memory _(relevant VMs must be **powered off**)_
 
     ```bash
-    ./play.sh vms
+    make vms
     ```
 
 Alternatively, **run all playbooks** automatically in order:
 
 ```bash
-# pass options like -v and --step
-./play.sh [ansible-playbook-opts]
+# specify options like -v or -t
+make -- [ansible-playbook-opts]
+
+# run all playbooks starting from "basics"
+# ("basics" is a playbook tag in main.yml)
+make -- basics-
+
+# run all playbooks up to "dns" (inclusive)
+make -- -dns
 ```
 
-Output from `play.sh` will be logged in "`ansible.log`".
+Output from playbook runs will be logged in "`ansible.log`".
 
 ## Troubleshooting
 
