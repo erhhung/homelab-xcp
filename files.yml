@@ -88,6 +88,31 @@
       loop: "{{ copy_files }}"
       timeout: 120
       notify: Touch symlinks and copied files
+
+    - name: Add `host` tag to non-shared SRs
+      run_once: true
+      # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/shell_module.html
+      ansible.builtin.shell: |
+        # run Bash to load .bashrc in order to
+        # use exported functions and variables
+        exec /bin/bash -l <<'EOT'
+        set -eo pipefail
+        rc=9 # no change
+
+        while read -r uuid host tags; do
+          [[ "$tags" == *host=* ]] || {
+            xe sr-param-add uuid=$uuid param-name=tags param-key="host=$host"
+            rc=0
+          }
+        done < <(
+          xe sr-list shared=false params=uuid,host,tags | \
+            parse_xe_output uuid host tags
+        )
+        exit $rc
+        EOT
+      register: tag_srs
+      changed_when: tag_srs.rc == 0
+      failed_when: tag_srs.rc not in [0,9]
   handlers:
     - name: Touch symlinks and copied files
       # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/shell_module.html
