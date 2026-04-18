@@ -11,11 +11,12 @@
 # shellcheck disable=SC2155 # Declare and assign separately
 # shellcheck disable=SC2198 # Arrays don't work as operands
 
-cd "$(dirname "$0")"
+# run from project root
+cd "$(dirname "$0")/.."
 set -eo pipefail
 
-# replace $@ with updated args list
-args="$(./runlist.sh "$@")" || exit
+# replace script args with modified list
+args="$(scripts/runlist.sh "$@")" || exit
 eval "set -- $args"
 
 if [ "${@: -1}" == temp.yml ]; then
@@ -44,7 +45,7 @@ get_playbooks() {
   jo PLAYBOOKS="$(jo -a \
     $(for arg in "$@"; do
         if [ "$arg" == temp.yml ]; then
-          yq 'map(.tags)[]' temp.yml
+          yq '.[].tags | select(.)' temp.yml
         elif [[ $arg == *.yml ]]; then
           basename "${arg%.yml}"
         fi

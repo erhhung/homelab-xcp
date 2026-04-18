@@ -25,7 +25,7 @@
         existing: "{{ overrides.json.data }}"
         override: "{{ item }}"
       # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/include_tasks_module.html
-      ansible.builtin.include_tasks: tasks/dns/upsert.yml
+      ansible.builtin.include_tasks: "{{ tasks_dir }}/dns/upsert.yml"
       loop: "{{ pfsense_dns_records }}"
       loop_control:
         label: "{{ item.ip }}|{{ item.host }}"

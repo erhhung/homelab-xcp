@@ -1,24 +1,34 @@
 ---
+- name: Set top-level playbook facts
+  hosts: localhost
+  tasks:
+    - name: Set project_dir fact
+      ansible.builtin.set_fact:
+        # https://docs.ansible.com/ansible/latest/reference_appendices/special_variables.html#term-playbook_dir
+        project_dir: "{{ playbook_dir }}"
+      when: project_dir is undefined
+      # ======= DO NOT REMOVE =======
+
 - name: Include Python 3 installation playbook
-  ansible.builtin.import_playbook: python3.yml
+  ansible.builtin.import_playbook: playbooks/python3.yml
   tags: python3
 
 - name: Include packages installation playbook
-  ansible.builtin.import_playbook: packages.yml
+  ansible.builtin.import_playbook: playbooks/packages.yml
   tags: packages
 
 - name: Include host & network settings playbook
-  ansible.builtin.import_playbook: basics.yml
+  ansible.builtin.import_playbook: playbooks/basics.yml
   tags: basics
 
 - name: Include home directory setup playbook
-  ansible.builtin.import_playbook: files.yml
+  ansible.builtin.import_playbook: playbooks/files.yml
   tags: files
 
 - name: Include pfSense DNS records playbook
-  ansible.builtin.import_playbook: dns.yml
+  ansible.builtin.import_playbook: playbooks/dns.yml
   tags: dns
 
 - name: Include VM configurations playbook
-  ansible.builtin.import_playbook: vms.yml
+  ansible.builtin.import_playbook: playbooks/vms.yml
   tags: vms

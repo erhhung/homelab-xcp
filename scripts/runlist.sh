@@ -18,7 +18,8 @@
 # shellcheck disable=SC2016 # Expr won't expand in '' quotes
 # shellcheck disable=SC2128 # Expanding array without index
 
-cd "$(dirname "$0")"
+# run from project root
+cd "$(dirname "$0")/.."
 set -eo pipefail
 
 # require given commands
@@ -35,10 +36,10 @@ _reqcmds() {
 _reqcmds yq jo || exit $?
 
 prettify() {
-  # first sed adds newline between tasks
-  # second removes trailing blank lines
-  sed -E 's/^([[:space:]]+tags:.+)$/\1\n/' | \
-  sed -e :a -e '/./,$!d;/^\n*$/{$d;N;};/\n$/ba'
+  # first sed adds newline between plays;
+  # the second trims trailing blank lines
+  sed -E 's/^([[:space:]]+(tags:|# ===).+)$/\1\n/' | \
+    sed -e :a -e '/./,$!d;/^\n*$/{$d;N;};/\n$/ba'
 }
 
 rm -f temp.yml
@@ -132,18 +133,20 @@ done
 if [[ "$tags" == -* ]]; then
   # create sliced version of main.yml
   T=${tags#-} yq '. as $d | .[] | select(.tags == env(T)) |
-      path[0] as $i |  $d | .[: $i + 1]' main.yml | prettify > temp.yml
+      path[0] as $i |  $d | .[: $i + 1]' \
+      main.yml | prettify > temp.yml
 
 elif [[ "$tags" == *- ]]; then
   # create sliced version of main.yml
   T=${tags%-} yq '. as $d | .[] | select(.tags == env(T)) |
-      path[0] as $i |  $d | .[$i :]'     main.yml | prettify > temp.yml
+      path[0] as $i | ($d | .[: 1]) + ($d | .[$i :])' \
+      main.yml | prettify > temp.yml
 
 else
   # create picked version of main.yml
   picks="$(jo -a -- "${tags[@]}" <<< "")"
   yq -PM 'load("/dev/stdin") as $picks | map(
-          select(.tags as $t |  $picks[] == $t))'  \
+          select(.tasks or (.tags as $t | $picks[] == $t)))' \
                   main.yml <<< "$picks" | prettify > temp.yml
 fi
 exit_opts temp.yml

@@ -7,7 +7,7 @@
   pre_tasks:
     - name: Include tasks to gather XCP-ng facts
       # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/include_tasks_module.html
-      ansible.builtin.include_tasks: tasks/xcpfacts.yml
+      ansible.builtin.include_tasks: "{{ tasks_dir }}/xcpfacts.yml"
       when: xcp_host_uuid is undefined
 
     - name: Define mounted SR paths with facts
@@ -81,7 +81,7 @@
     - name: Copy dot files and README files
       # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/copy_module.html
       ansible.builtin.copy:
-        src: "{{ playbook_dir }}/files/{{ item }}"
+        src: "{{ files_dir }}/{{ item }}"
         dest: "{{ ansible_facts['user_dir'] }}/{{ item }}"
         mode: "0644"
         directory_mode: "0755"

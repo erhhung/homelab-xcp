@@ -11,5 +11,6 @@
     "*.json.tftpl": "json",
     "*.yaml.tftpl": "yaml",
     "*.sh.tftpl": "shellscript"
-  }
+  },
+  "makefile.configureOnOpen": false
 }

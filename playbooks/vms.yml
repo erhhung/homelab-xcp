@@ -5,7 +5,7 @@
   vars_files:
     - vars/vms.yml
   vars:
-    tf_path: "{{ playbook_dir }}/terraform"
+    tf_path: "{{ project_dir }}/terraform"
     tfvars_files:
       - creds.tfvars
       - k8s.tfvars

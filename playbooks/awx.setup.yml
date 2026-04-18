@@ -16,6 +16,7 @@
     - name: Assert PLAYBOOKS defined
       ansible.builtin.assert:
         that:
+          # https://docs.ansible.com/projects/ansible/latest/collections/ansible/builtin/index.html#test-plugins
           # PLAYBOOKS is a list:
           - PLAYBOOKS is defined
           - PLAYBOOKS is sequence
@@ -40,7 +41,7 @@
         cd /runner/project
 
         args=({{ '' if 'ALL' in playbooks else playbooks | join(' ') }})
-        ./runlist.sh "${args[@]}" || exit 1
+        scripts/runlist.sh "${args[@]}" || exit 1
 
         [[ " ${args[*]} " == *" DEBUG "* ]] && {
           # if debug was the only playbook selected, delete temp.yml
@@ -52,7 +53,7 @@
 
           cat<<'EOT' >> temp.yml
         - name: Include Ansible debugging playbook
-          ansible.builtin.import_playbook: debug.yml
+          ansible.builtin.import_playbook: playbooks/debug.yml
           tags: debug
         EOT
         }
@@ -73,7 +74,7 @@
         playbooks: '{{ runlist | community.general.json_query(
           ''[]."ansible.builtin.import_playbook"'') }}'
       block:
-        # list of /runner/project/*.yml
+        # list of /runner/project/playbooks/*.yml
         - name: Output temporary runlist
           ansible.builtin.debug:
             var: playbooks

@@ -2,9 +2,11 @@
 **/__pycache__/
 **/.ansible/roles/
 **/.ansible/collections/
-**/.venv/
 **/.env
 **/*.log
-temp.yml
+**/.venv/
+.python-version
 uv.lock
+temp.yml
 NOTES
+cloc/

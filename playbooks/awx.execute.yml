@@ -2,5 +2,12 @@
 # where "temp.yml" has already been created under
 # /var/lib/awx/tmp/ by the previous job template
 ---
+- name: Preparing to run
+  hosts: localhost
+  pre_tasks:
+    - name: Set project_dir fact
+      ansible.builtin.set_fact:
+        project_dir: /runner/project
+
 - name: Include playbook of selected playbooks
   ansible.builtin.import_playbook: /var/lib/awx/tmp/homelab-xcp/temp.yml

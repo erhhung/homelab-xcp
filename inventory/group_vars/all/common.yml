@@ -17,6 +17,15 @@ ansible_ssh_common_args: >-
 
 ansible_python_interpreter: /usr/bin/python3
 
+# localhost fact `project_dir` is set by top-level playbook "main.yml"
+project_dir: "{{ hostvars['localhost']['project_dir'] |
+  default(playbook_dir | ansible.builtin.dirname) }}"
+vars_dir: "{{ project_dir }}/vars"
+tasks_dir: "{{ project_dir }}/tasks"
+templates_dir: "{{ project_dir }}/templates"
+files_dir: "{{ project_dir }}/files"
+scripts_dir: "{{ project_dir }}/scripts"
+
 homelab_domain: fourteeners.local
 search_domains:
   - "{{ homelab_domain }}"

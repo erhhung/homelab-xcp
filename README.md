@@ -31,7 +31,7 @@ The Ansible Vault password is stored in macOS Keychain under item `XCP-ng` for a
 
 ```bash
 export ANSIBLE_CONFIG="./ansible.cfg"
-VAULTFILE="group_vars/all/vault.yml"
+VAULTFILE="inventory/group_vars/all/vault.yml"
 
 ansible-vault create $VAULTFILE
 ansible-vault edit   $VAULTFILE
