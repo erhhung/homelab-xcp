@@ -95,6 +95,6 @@ vm_config:
     vcpus: 10
     memory: 36GiB
     disk:
-      size: 150GiB # 146.95GiB usable
-      lv: 83.79G # leaves 63.16G free, and 95% of that for data LV = 60G
+      size: 175GiB # 171.95GiB usable
+      lv: 98.26G # leaves 73.69G free, and 95% of that for data LV = 70G
     ip: 192.168.0.176
