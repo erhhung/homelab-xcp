@@ -1,0 +1,47 @@
+# create a batch of Kubernetes VMs via Terraform
+#
+# pass the following vars:
+#   batch        <required> name of VMs to create
+#   batch_num    <required> log filename batch #
+#   tf_path      <required> Terraform project dir
+#   tfvars_files <required> .tfvars files to use
+---
+- name: Create Kubernetes VMs
+  vars:
+    log_file: "{{ tf_path }}/tf.log"
+  block:
+    - name: Clear Terraform logs
+      # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/command_module.html
+      ansible.builtin.command: rm -f "{{ log_file }}"*
+      changed_when: false
+
+    - name: Create Kubernetes VMs
+      vars:
+        tf_targets: |
+          {{ batch  | map('regex_replace', '^(.*)$', 'module.xcp_vms["\1"]') }}
+      # https://docs.ansible.com/projects/ansible/latest/collections/community/general/terraform_module.html
+      community.general.terraform:
+        project_path: "{{ tf_path }}"
+        backend_config_files:
+          - backend.config
+        # use wrapper script that executes
+        # OpenTofu from a Docker container
+        binary_path: "{{ tf_path }}/tf.sh"
+        init_reconfigure: true
+        provider_upgrade: true
+        variables_files: "{{ tfvars_files }}"
+        targets: "{{ tf_targets }}"
+        state: present
+      # installing fresh operating system and
+      # upgrading packages could take a while
+      timeout: 1800
+      changed_when:
+        - log_file is file
+        - lookup('ansible.builtin.file', log_file) is not
+          search('No changes.+ matches the configuration')
+
+    - name: Preserve Terraform log
+      vars:
+        new_name: "{{ tf_path }}/tf{{ batch_num }}.log"
+      ansible.builtin.command: mv -f "{{ log_file }}" "{{ new_name }}"
+      changed_when: false

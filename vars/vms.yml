@@ -18,7 +18,9 @@ host_affinities:
   cosmos: xcp1
   xoa: xcp1
   xo: xcp2
-  rancher: xcp3
+  # remember to  keep `vm_batches`
+  # in sync with `host_affinities`
+  rancher: xcp4
   k8s1: xcp6
   k8s2: xcp5
   k8s3: xcp3
@@ -40,7 +42,7 @@ vm_config:
     name: Rancher
     desc: K3s + Rancher
     vcpus: 4
-    memory: 4GiB
+    memory: 8GiB
     disk:
       size: 50GiB # 46.95GiB usable
       lv: 45G # g=GB/G=GiB
@@ -69,7 +71,7 @@ vm_config:
     name: K8s3
     desc: *desc
     vcpus: 4
-    memory: 24GiB
+    memory: 28GiB
     disk: *disk
     ip: 192.168.0.173
 
@@ -77,7 +79,7 @@ vm_config:
     name: K8s4
     desc: *desc
     vcpus: 4
-    memory: 28GiB
+    memory: 20GiB
     disk: *disk
     ip: 192.168.0.174
 
@@ -98,3 +100,14 @@ vm_config:
       size: 175GiB # 171.95GiB usable
       lv: 98.26G # leaves 73.69G free, and 95% of that for data LV = 70G
     ip: 192.168.0.176
+
+# do VM creations in batches according to their host affinities
+# to avoid overloading hosts with multiple VM creations at once
+vm_batches:
+  - - k8s1 # xcp6
+    - k8s2 # xcp5
+    - k8s3 # xcp3
+    - k8s4 # xcp4
+  - - rancher # xcp4
+    - k8s5 # xcp5
+    - k8s6 # xcp6

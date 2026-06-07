@@ -32,7 +32,7 @@ _reqcmds() {
 
 _reqcmds docker || exit $?
 
-if [[ "$1" =~ ^(show|plan|apply|refresh)$ ]]; then
+if [[ "$1" =~ ^(show|plan|apply|refresh|destroy)$ ]]; then
   LOG=$(basename "$0" .sh).log
   rm -f "$LOG"
 else
@@ -47,7 +47,10 @@ no_color() {
 # show color output but
 #  no color in log file
 log() {
-  tee >(no_color >> "$LOG")
+  local log="$LOG"
+  # append optional extension to log filename unless /dev/null
+  [ "$LOG" == /dev/null ] || log+="$1"
+  tee >(no_color >> "$log")
 }
 
 docker_build() {
@@ -58,7 +61,7 @@ docker_build() {
 
 docker_run() {
   local name=$(n=10000; printf "opentofu-%04d" $((RANDOM % n)))
-  # mount ~/.aws so OpenTofu can use the AWS provider for backend;
+  # mount ~/.aws so OpenTofu can use the AWS provider for backend
   # mount $TMPDIR because community.general.terraform passes -out
   # parameter to write .tfplan file
   local args=(--rm \
@@ -71,9 +74,17 @@ docker_run() {
   )
   # allocate TTY if stdout is terminal
   [ -t 1 ] && args=(-it "${args[@]}")
-  { set -x
+  ( echo;  set -x
     docker run "${args[@]}" "$@"
-  } > >(log) 2> >(log >/dev/null)
+
+  # write stdout and stderr to separate files
+  # to avoid interleaving--combine them later
+  ) > >(log .out) 2> >(log .err >/dev/null)
+
+  [ "$LOG" == /dev/null ] || {
+    cat   "$LOG.err" "$LOG.out" > "$LOG"
+    rm -f "$LOG".*
+  }
 }
 
 TAG=opentofu

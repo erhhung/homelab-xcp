@@ -15,7 +15,7 @@
         tfvars: "{{ tf_path }}/{{ item }}"
       # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/template_module.html
       ansible.builtin.template:
-        src: "{{ tfvars }}.j2"
+        src: "{{  tfvars }}.j2"
         dest: "{{ tfvars }}"
         mode: "0644"
       loop: "{{ tfvars_files }}"
@@ -26,26 +26,22 @@
     #     tfvars: "{{ tf_path }}/k8s.tfvars"
     #   # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/copy_module.html
     #   ansible.builtin.copy:
-    #     src: "{{ tfvars }}.test"
+    #     src: "{{  tfvars }}.test"
     #     dest: "{{ tfvars }}"
     #     mode: preserve
   tasks:
     - name: Create Kubernetes VMs
-      # https://docs.ansible.com/projects/ansible/latest/collections/community/general/terraform_module.html
-      community.general.terraform:
-        project_path: "{{ tf_path }}"
-        backend_config_files:
-          - backend.config
-        # use wrapper script that executes
-        # OpenTofu from a Docker container
-        binary_path: "{{ tf_path }}/tf.sh"
-        init_reconfigure: true
-        provider_upgrade: true
-        variables_files: "{{ tfvars_files }}"
-        state: present
-      # installing OSes on new
-      # VMs could take a while
-      timeout: 1800
+      vars:
+        batch_num: "{{ i+1 }}"
+      # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/include_tasks_module.html
+      ansible.builtin.include_tasks: "{{ tasks_dir }}/vms/create.yml"
+      loop: "{{ vm_batches }}"
+      # https://docs.ansible.com/projects/ansible/latest/playbook_guide/playbooks_loops.html#loops
+      loop_control:
+        index_var: i
+        loop_var: batch
+        label: "{{ batch | join(',') }}"
+        pause: 10
 
 - name: Configure VM settings
   tags: configure

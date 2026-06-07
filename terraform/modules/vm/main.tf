@@ -71,6 +71,7 @@ locals {
 resource "xenorchestra_vm" "vm" {
   name_label        = var.name
   name_description  = var.description
+  affinity_host     = var.host != null ? data.xenorchestra_host.host[0].id : null
   host              = var.host != null ? data.xenorchestra_host.host[0].id : null
   cpus              = var.vcpus
   memory_min        = var.memory_gb * pow(2, 30)

@@ -13,7 +13,7 @@ endif
 .SHELLFLAGS := bash -o pipefail -c
 .ONESHELL:   # require GNU Make 4+
 
- PHONY := all play debug check lint cloc tags
+ PHONY := all play debug check lint tf cloc tags
 .PHONY: $(PHONY)
 
 # targets are playbook names with optional dash prefix/suffix (refer to
@@ -67,6 +67,11 @@ lint:
 	@ansible-lint $(addprefix playbooks/, \
 								$(addsuffix .yml, $(rest_goals))) \
 		2> >(sed -E 's/ Last profile.+$$//' >&2)
+
+# run OpenTofu command in ./terraform dir
+tf:
+	@cd ./terraform && \
+	./tf.sh $(rest_goals)
 
 # count lines of code in the project
 # `make cloc -- --csv | rich --csv -`

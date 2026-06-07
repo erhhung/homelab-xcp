@@ -4,6 +4,7 @@
 **/.ansible/collections/
 **/.env
 **/*.log
+**/*.log.*
 **/.venv/
 .python-version
 uv.lock
