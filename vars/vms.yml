@@ -54,9 +54,9 @@ vm_config:
       RKE2 Cluster Node
     vcpus: 10
     memory: 22GiB
-    disk: &disk
-      size: 125GiB # 121.95GiB usable
-      lv: 58.79G # leaves 63.16G free, and 95% of that for data LV = 60G
+    disk:
+      size: 150GiB # 146.95GiB usable
+      lv: 83.79G # leaves 63.16G free, and 95% of that for data LV = 60G
     ip: 192.168.0.171
 
   k8s2:
@@ -64,7 +64,9 @@ vm_config:
     desc: *desc
     vcpus: 6
     memory: 14GiB
-    disk: *disk
+    disk: &disk
+      size: 125GiB # 121.95GiB usable
+      lv: 58.79G # leaves 63.16G free, and 95% of that for data LV = 60G
     ip: 192.168.0.172
 
   k8s3:

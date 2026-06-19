@@ -31,7 +31,7 @@
           regex_search('LANGUAGE=([^\n]+)','\\1') |
           default([locale_lang], true) | first }}"
   tasks:
-    # https://docs.xenserver.com/en-us/citrix-hypervisor/networking/manage.html#hostname
+    # https://docs.xenserver.com/en-us/xenserver/8/networking/manage#hostname
     - name: Set host name to "xcp?"
       ansible.builtin.command:
         argv:
@@ -98,6 +98,18 @@
             label: "{{ item.option }}"
           notify: Reload systemd config files
 
+    # https://docs.xenserver.com/en-us/xenserver/8/hosts-pools/manage-hosts#configure-host-power-on
+    - name: Set power-on mode to Wake-on-LAN
+      ansible.builtin.command:
+        argv:
+          - xe
+          - host-set-power-on-mode
+          - uuid={{ xcp_host_uuid }}
+          - power-on-mode=wake-on-lan
+          - power-on-config:mac={{ xcp_pif_mac }}
+      when: xcp_power_on_mode != 'wake-on-lan'
+      changed_when: true
+
     # https://bobcares.com/blog/xcp-ng-gpu-passthrough
     # https://xcp-ng.org/forum/topic/6211/intel-gpu-passthrough-question/12
     # https://xcp-ng.org/forum/topic/3534/pci-passthrough-back-to-dom0
@@ -151,7 +163,7 @@
   vars_files:
     - vars/basics.yml
   tasks:
-    # https://docs.xenserver.com/en-us/citrix-hypervisor/networking/manage.html#dns-servers
+    # https://docs.xenserver.com/en-us/xenserver/8/networking/manage#dns-servers
     - name: Set DNS name servers
       ansible.builtin.command:
         argv:
@@ -170,7 +182,7 @@
         'Lost connection to the server' not in result.stderr
       changed_when: true
 
-    # https://docs.xcp-ng.org/networking/#-dns-search-domains
+    # https://docs.xcp-ng.org/networking#-dns-search-domains
     - name: Set DNS search domains
       ansible.builtin.command:
         argv:

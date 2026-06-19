@@ -10,19 +10,33 @@
 - name: Get PIF param values
   # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/command_module.html
   ansible.builtin.command: >-
-    xe pif-list --minimal params={{ item }} IP={{ ansible_host }}
+    xe pif-list --minimal params={{ item }} IP={{ ansible_host }} management=true
   loop:
     # IMPORTANT! the set facts task below
     # relies on the order of these items
-    - uuid
     - host-uuid
-    - host-name-label
+    - uuid
+    - MAC
     - DNS
     - other-config
   # this task could take a while when there
   # are busy workloads running on the hosts
   timeout: 60
   register: pif_params
+  changed_when: false
+
+- name: Get host param values
+  vars:
+    uuid: "{{ pif_params.results[0].stdout }}"
+  ansible.builtin.command: >-
+    xe host-list --minimal params={{ item }} uuid={{ uuid }}
+  loop:
+    # IMPORTANT! the set facts task below
+    # relies on the order of these items
+    - name-label
+    - power-on-mode
+  timeout: 60
+  register: host_params
   changed_when: false
 
 - name: Get existing host name
@@ -42,29 +56,33 @@
 
 - name: Set facts from params
   vars:
-    csv3: "{{ pif_params.results[3].stdout }}"
+    csv3: "{{  pif_params.results[3].stdout }}"
     csv4: "{{ (pif_params.results[4].stdout |
       regex_search('domain: ([^;]+)','\\1') or ['']) | first }}"
   # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/set_fact_module.html
   ansible.builtin.set_fact:
-    xcp_pif_uuid: "{{ pif_params.results[0].stdout }}"
-    xcp_host_uuid: "{{ pif_params.results[1].stdout }}"
-    xcp_host_name_xe: "{{ pif_params.results[2].stdout }}"
-    xcp_host_name_os: "{{ hostname_output.stdout }}"
-    # NOTE: xe --minimal returns CSV delimited by backslash-comma
-    xcp_name_servers: "{{ csv3 | split('\\,') if csv3 else [] }}"
-    xcp_search_domains: "{{ csv4 | split('\\,') if csv4 else [] }}"
+    xcp_host_uuid: "{{      pif_params.results[0].stdout }}"
+    xcp_pif_uuid: "{{       pif_params.results[1].stdout }}"
+    xcp_pif_mac: "{{        pif_params.results[2].stdout }}"
+    xcp_host_name_os: "{{  hostname_output.stdout        }}"
+    xcp_host_name_xe: "{{  host_params.results[0].stdout }}"
+    xcp_power_on_mode: "{{ host_params.results[1].stdout }}"
+    # NOTE: `xe --minimal` returns CSV delimited by backslash-comma
+    xcp_name_servers: "{{    csv3 | split('\\,') if csv3 else [] }}"
+    xcp_search_domains: "{{  csv4 | split('\\,') if csv4 else [] }}"
     shared_isos_sr_uuid: "{{ sr_uuids.results[0].stdout }}"
-    backups_sr_uuid: "{{ sr_uuids.results[1].stdout }}"
+    backups_sr_uuid: "{{     sr_uuids.results[1].stdout }}"
 
 - name: Print gathered facts
   # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/debug_module.html
   ansible.builtin.debug:
     msg: |-
-      xcp_pif_uuid: "{{ xcp_pif_uuid }}"
       xcp_host_uuid: "{{ xcp_host_uuid }}"
-      xcp_host_name_xe: "{{ xcp_host_name_xe }}"
+      xcp_pif_uuid: "{{ xcp_pif_uuid }}"
+      xcp_pif_mac: "{{ xcp_pif_mac }}"
       xcp_host_name_os: "{{ xcp_host_name_os }}"
+      xcp_host_name_xe: "{{ xcp_host_name_xe }}"
+      xcp_power_on_mode: "{{ xcp_power_on_mode }}"
       xcp_name_servers: "{{ xcp_name_servers | join(',') }}"
       xcp_search_domains: "{{ xcp_search_domains | join(',') }}"
       shared_isos_sr_uuid: "{{ shared_isos_sr_uuid }}"
