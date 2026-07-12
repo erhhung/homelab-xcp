@@ -1,0 +1,479 @@
+#!/usr/bin/env python3
+
+"""
+Safely detect and optionally remove a
+stale VDI sm_config["activating"] key.
+
+This addresses errors such as:
+
+    SR_BACKEND_FAILURE_46
+    MAP_DUPLICATE_KEY ... VDI ... sm_config ... activating
+
+The script is check-only by default.
+Use --fix to remove the stale key.
+
+Exit codes:
+    0  No stale keys found, or all requested repairs succeeded
+    1  A lookup, API, verification, or safety check failed
+    2  Check-only mode found one or more stale keys
+
+This script was written by ChatGPT.
+"""
+
+import argparse
+import os
+import sys
+import uuid
+
+NULL_REF = "OpaqueRef:NULL"
+STALE_KEY = "activating"
+ORIGINATOR = "clear-stale-vdi-activating"
+
+
+def eprint(message):
+    print(message, file=sys.stderr)
+
+
+def validate_uuid(value):
+    try:
+        return str(uuid.UUID(value))
+    except (ValueError, AttributeError):
+        raise argparse.ArgumentTypeError("not a valid UUID: {!r}".format(value))
+
+
+def is_null_ref(ref):
+    return not ref or ref == NULL_REF
+
+
+def format_operations(operations):
+    if not operations:
+        return "none"
+
+    if isinstance(operations, dict):
+        return ", ".join(
+            "{}={}".format(task_ref, operation)
+            for task_ref, operation in sorted(operations.items())
+        )
+
+    return str(operations)
+
+
+def vm_safety_errors(vm_record):
+    errors = []
+
+    if vm_record.get("is_control_domain"):
+        errors.append("VM is a control domain")
+
+    if vm_record.get("is_a_template"):
+        errors.append("object is a VM template")
+
+    if vm_record.get("is_a_snapshot"):
+        errors.append("object is a VM snapshot")
+
+    power_state = vm_record.get("power_state")
+    if power_state != "Halted":
+        errors.append("VM power_state is {!r}, not 'Halted'".format(power_state))
+
+    current_operations = vm_record.get("current_operations") or {}
+    if current_operations:
+        errors.append(
+            "VM has current operations: {}".format(
+                format_operations(current_operations)
+            )
+        )
+
+    domid = str(vm_record.get("domid", "-1"))
+    if domid not in ("-1", ""):
+        errors.append("VM has domid {}, rather than -1".format(domid))
+
+    return errors
+
+
+def vdi_safety_errors(xapi, vdi_record):
+    errors = []
+
+    if vdi_record.get("missing"):
+        errors.append("VDI is marked missing")
+
+    if not vdi_record.get("managed", True):
+        errors.append("VDI is not managed by XAPI")
+
+    current_operations = vdi_record.get("current_operations") or {}
+    if current_operations:
+        errors.append(
+            "VDI has current operations: {}".format(
+                format_operations(current_operations)
+            )
+        )
+
+    # Check every VBD referencing the VDI, not just the VBD belonging
+    # to the VM supplied on the command line.
+    for vbd_ref in vdi_record.get("VBDs", []):
+        vbd_record = xapi.VBD.get_record(vbd_ref)
+        vbd_uuid = vbd_record.get("uuid", vbd_ref)
+
+        if vbd_record.get("currently_attached"):
+            errors.append("VBD {} is currently attached".format(vbd_uuid))
+
+        vbd_operations = vbd_record.get("current_operations") or {}
+        if vbd_operations:
+            errors.append(
+                "VBD {} has current operations: {}".format(
+                    vbd_uuid,
+                    format_operations(vbd_operations),
+                )
+            )
+
+        owner_vm_ref = vbd_record.get("VM")
+        if is_null_ref(owner_vm_ref):
+            continue
+
+        owner_vm_record = xapi.VM.get_record(owner_vm_ref)
+        owner_vm_uuid = owner_vm_record.get("uuid", owner_vm_ref)
+        owner_power_state = owner_vm_record.get("power_state")
+        owner_operations = owner_vm_record.get("current_operations") or {}
+        owner_domid = str(owner_vm_record.get("domid", "-1"))
+
+        if owner_power_state != "Halted":
+            errors.append(
+                "VBD {} belongs to VM {} whose power_state is {!r}".format(
+                    vbd_uuid,
+                    owner_vm_uuid,
+                    owner_power_state,
+                )
+            )
+
+        if owner_operations:
+            errors.append(
+                "VBD {} belongs to VM {} with current operations: {}".format(
+                    vbd_uuid,
+                    owner_vm_uuid,
+                    format_operations(owner_operations),
+                )
+            )
+
+        if owner_domid not in ("-1", ""):
+            errors.append(
+                "VBD {} belongs to VM {} with domid {}".format(
+                    vbd_uuid,
+                    owner_vm_uuid,
+                    owner_domid,
+                )
+            )
+
+    return errors
+
+
+def get_vm_disk_vdis(xapi, vm_record):
+    """
+    Return unique, non-empty Disk VDIs used by the VM.
+
+    Each result is:
+
+        (VDI ref, VDI UUID, VDI name-label, source VBD UUID)
+    """
+
+    results = []
+    seen = set()
+
+    for vbd_ref in vm_record.get("VBDs", []):
+        vbd_record = xapi.VBD.get_record(vbd_ref)
+
+        if vbd_record.get("empty"):
+            continue
+
+        if vbd_record.get("type") != "Disk":
+            continue
+
+        vdi_ref = vbd_record.get("VDI")
+        if is_null_ref(vdi_ref) or vdi_ref in seen:
+            continue
+
+        seen.add(vdi_ref)
+        vdi_record = xapi.VDI.get_record(vdi_ref)
+
+        results.append(
+            (
+                vdi_ref,
+                vdi_record.get("uuid", vdi_ref),
+                vdi_record.get("name_label", ""),
+                vbd_record.get("uuid", vbd_ref),
+            )
+        )
+
+    return results
+
+
+def print_safety_failure(prefix, errors):
+    eprint("{} safety check failed:".format(prefix))
+
+    for error in errors:
+        eprint("  - {}".format(error))
+
+
+def process_vm(xapi, vm_uuid, fix):
+    """
+    Return:
+
+        (stale_count, fixed_count, failed)
+    """
+
+    try:
+        vm_ref = xapi.VM.get_by_uuid(vm_uuid)
+        vm_record = xapi.VM.get_record(vm_ref)
+    except Exception as exc:
+        eprint("{}: unable to read VM: {}".format(vm_uuid, exc))
+        return 0, 0, True
+
+    vm_name = vm_record.get("name_label", "")
+
+    print(
+        "VM {} ({})".format(
+            vm_uuid,
+            vm_name or "unnamed",
+        )
+    )
+
+    errors = vm_safety_errors(vm_record)
+    if errors:
+        print_safety_failure("VM {}".format(vm_uuid), errors)
+        return 0, 0, True
+
+    try:
+        disk_vdis = get_vm_disk_vdis(xapi, vm_record)
+    except Exception as exc:
+        eprint(
+            "  Unable to enumerate disk VDIs for VM {}: {}".format(
+                vm_uuid,
+                exc,
+            )
+        )
+        return 0, 0, True
+
+    if not disk_vdis:
+        print("  No non-empty Disk VDIs found.")
+        return 0, 0, False
+
+    stale_count = 0
+    fixed_count = 0
+    failed = False
+
+    for vdi_ref, vdi_uuid, vdi_name, source_vbd_uuid in disk_vdis:
+        try:
+            vdi_record = xapi.VDI.get_record(vdi_ref)
+        except Exception as exc:
+            eprint(
+                "  VDI {}: unable to read record: {}".format(
+                    vdi_uuid,
+                    exc,
+                )
+            )
+            failed = True
+            continue
+
+        sm_config = vdi_record.get("sm_config") or {}
+
+        print(
+            "  VDI {} ({}) via VBD {}".format(
+                vdi_uuid,
+                vdi_name or "unnamed",
+                source_vbd_uuid,
+            )
+        )
+
+        if STALE_KEY not in sm_config:
+            print("    {} key: absent".format(STALE_KEY))
+            continue
+
+        stale_count += 1
+
+        print(
+            "    {} key: present, value={!r}".format(
+                STALE_KEY,
+                sm_config.get(STALE_KEY),
+            )
+        )
+
+        try:
+            errors = vdi_safety_errors(xapi, vdi_record)
+        except Exception as exc:
+            eprint("    Unable to complete VDI safety checks: {}".format(exc))
+            failed = True
+            continue
+
+        if errors:
+            print_safety_failure(
+                "    VDI {}".format(vdi_uuid),
+                errors,
+            )
+            failed = True
+            continue
+
+        if not fix:
+            print("    Safe to repair; re-run with --fix.")
+            continue
+
+        # Re-read and repeat all checks immediately before mutation
+        # to reduce the chance of racing another operation.
+        try:
+            fresh_vm_record = xapi.VM.get_record(vm_ref)
+            fresh_vm_errors = vm_safety_errors(fresh_vm_record)
+
+            if fresh_vm_errors:
+                print_safety_failure(
+                    "    VM {} recheck".format(vm_uuid),
+                    fresh_vm_errors,
+                )
+                failed = True
+                continue
+
+            fresh_vdi_record = xapi.VDI.get_record(vdi_ref)
+            fresh_sm_config = fresh_vdi_record.get("sm_config") or {}
+
+            if STALE_KEY not in fresh_sm_config:
+                print("    Key disappeared before repair; no change required.")
+                continue
+
+            fresh_vdi_errors = vdi_safety_errors(
+                xapi,
+                fresh_vdi_record,
+            )
+
+            if fresh_vdi_errors:
+                print_safety_failure(
+                    "    VDI {} recheck".format(vdi_uuid),
+                    fresh_vdi_errors,
+                )
+                failed = True
+                continue
+
+            xapi.VDI.remove_from_sm_config(
+                vdi_ref,
+                STALE_KEY,
+            )
+
+            verified_sm_config = xapi.VDI.get_sm_config(vdi_ref)
+
+            if STALE_KEY in verified_sm_config:
+                eprint("    Repair verification failed: the key is still present.")
+                failed = True
+                continue
+
+            fixed_count += 1
+            print("    Removed stale {!r} key.".format(STALE_KEY))
+
+        except Exception as exc:
+            eprint(
+                "    Failed to remove stale key from VDI {}: {}".format(
+                    vdi_uuid,
+                    exc,
+                )
+            )
+            failed = True
+
+    return stale_count, fixed_count, failed
+
+
+def build_parser():
+    parser = argparse.ArgumentParser(
+        description=(
+            "Safely detect and optionally remove stale VDI "
+            'sm_config["activating"] entries from halted VMs.'
+        )
+    )
+
+    parser.add_argument(
+        "vm_uuid",
+        metavar="VM_UUID",
+        nargs="+",
+        type=validate_uuid,
+        help="VM UUID to inspect; multiple UUIDs may be supplied",
+    )
+
+    parser.add_argument(
+        "--fix",
+        action="store_true",
+        help=(
+            "Remove stale entries after all safety checks pass. "
+            "Without this option, no changes are made."
+        ),
+    )
+
+    return parser
+
+
+def main():
+    parser = build_parser()
+    args = parser.parse_args()
+
+    if os.geteuid() != 0:
+        parser.error("run this script as root on an XCP-ng pool host")
+
+    try:
+        import XenAPI
+    except ImportError as exc:
+        eprint(
+            "Unable to import XenAPI: {}. "
+            "Run this on an XCP-ng host with the XenAPI "
+            "Python bindings installed.".format(exc)
+        )
+        return 1
+
+    mode = "REPAIR" if args.fix else "CHECK-ONLY"
+    print("Mode: {}".format(mode))
+
+    session = XenAPI.xapi_local()
+
+    total_stale = 0
+    total_fixed = 0
+    any_failed = False
+
+    try:
+        session.xenapi.login_with_password(
+            "root",
+            "",
+            "2.3",
+            ORIGINATOR,
+        )
+
+        for vm_uuid in args.vm_uuid:
+            stale_count, fixed_count, failed = process_vm(
+                session.xenapi,
+                vm_uuid,
+                args.fix,
+            )
+
+            total_stale += stale_count
+            total_fixed += fixed_count
+            any_failed = any_failed or failed
+
+    except Exception as exc:
+        eprint("XAPI session failure: {}".format(exc))
+        return 1
+
+    finally:
+        try:
+            session.xenapi.session.logout()
+        except Exception:
+            pass
+
+    print("")
+    print(
+        "Summary: stale={}, fixed={}, safety/API failures={}".format(
+            total_stale,
+            total_fixed,
+            "yes" if any_failed else "no",
+        )
+    )
+
+    if any_failed:
+        return 1
+
+    if total_stale and not args.fix:
+        return 2
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

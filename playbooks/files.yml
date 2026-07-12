@@ -89,6 +89,14 @@
       timeout: 120
       notify: Touch symlinks and copied files
 
+    - name: Copy useful scripts to /root/bin
+      ansible.builtin.copy:
+        src: "{{ files_dir }}/bin/"
+        dest: "{{ ansible_facts['user_dir'] }}/bin/"
+        mode: "0755"
+        directory_mode: "0755"
+      notify: Touch symlinks and copied files
+
     - name: Add `host` tag to non-shared SRs
       run_once: true
       # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/shell_module.html
@@ -115,6 +123,8 @@
       failed_when: tag_srs.rc not in [0,9]
   handlers:
     - name: Touch symlinks and copied files
+      vars:
+        files: "{{ copy_files | map('quote') | join(' ') }}"
       # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/shell_module.html
       ansible.builtin.shell: |
         # run Bash to load .bashrc in order to
@@ -126,6 +136,6 @@
           {{ local_isos_sr_path }}  \
           {{ local_isos_sr_path | dirname }}
         # now do the same again but recursively
-        touchall -t 00 {{ copy_files | map('quote') | join(' ') }}
+        touchall -t 00 {{ files }} bin/
         EOT
       changed_when: true
