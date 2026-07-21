@@ -46,9 +46,9 @@ pfsense_dns_records:
     host: xo
     desc: Xen Orchestra
 
-  - ip: 192.168.0.132
-    host: rainier
-    desc: Windows DC
+  # - ip: 192.168.0.132
+  #   host: rainier
+  #   desc: Windows DC
   - ip: 192.168.0.133
     host: shasta
     desc: Samba ADDC

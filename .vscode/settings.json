@@ -1,5 +1,13 @@
 {
+  "terminal.integrated.defaultProfile.linux": "bash",
   "terminal.integrated.defaultProfile.osx": "bash",
+  "terminal.integrated.profiles.linux": {
+    "bash": {
+      "path": "/usr/bin/bash",
+      "args": ["--rcfile", ".vscode/.bash_profile"],
+      "icon": "terminal-bash"
+    }
+  },
   "terminal.integrated.profiles.osx": {
     "bash": {
       "path": "/usr/local/bin/bash",

@@ -4,7 +4,8 @@ terraform {
   # https://www.terraform.io/language/providers/requirements
   required_providers {
     xenorchestra = {
-      source = "vatesfr/xenorchestra"
+      source  = "vatesfr/xenorchestra"
+      version = "~> 0.39.0"
     }
   }
 }

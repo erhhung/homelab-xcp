@@ -31,13 +31,13 @@ export ANSIBLE_FORCE_COLOR=true
 # https://docs.astral.sh/uv/
 use_uv=$(command -v uv 2> /dev/null)
 
-echo -e "\nActivating Python virtual environment..."
+echo -e "\nActivating Python virtual environment...\n"
 [ "$use_uv" ] && uv venv --allow-existing || python3 -m venv .venv
 . .venv/bin/activate
 
-echo -e "Installing Ansible from requirements...\n"
-[ "$use_uv" ] || pip3 install --no-cache-dir --upgrade pip
-[ "$use_uv" ] && uv   sync    --no-cache     --no-dev  \
+echo -e "\nInstalling Ansible from requirements...\n"
+[ "$use_uv" ] || python3 -m ensurepip --upgrade
+[ "$use_uv" ] && uv   sync --no-cache --no-dev --link-mode=copy \
               || pip3 install --no-cache-dir -r requirements.txt
 
 # get playbooks that will be run
@@ -55,6 +55,26 @@ get_playbooks() {
 # pass extra var to indicate
 # playbooks that will be run
 extra_vars="$(get_playbooks "$@")"
+
+# install roles from requirements
+install_roles() {
+  # list of playbooks that use roles
+  local use_roles="$(jo -a basics)"
+
+  jq -n --argjson extra_vars "$extra_vars" \
+        --argjson use_roles  "$use_roles"  \
+    'halt_error(if any($extra_vars.PLAYBOOKS[]; . as $x |
+      $use_roles | index($x)) then 0 else 1 end)' || return 0
+
+  echo -e "\nInstalling roles and collections..."
+  ansible-galaxy install -r requirements.yml > /dev/null
+}
+install_roles
+
+# purge facts cache when re-running all playbooks
+[ "${@: -1}" == temp.yml ] && [ -f temp.yml ] && \
+  diff -q temp.yml main.yml &> /dev/null && \
+    rm -f .ansible/facts/*
 
 # strip ANSI color codes
 no_color() {

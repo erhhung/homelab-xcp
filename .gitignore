@@ -1,13 +1,14 @@
 **/.DS_Store
 **/__pycache__/
-**/.ansible/roles/
 **/.ansible/collections/
+**/.ansible/roles/
+**/.ansible/facts/
 **/.env
 **/*.log
 **/*.log.*
+**/*.lock
 **/.venv/
 .python-version
-uv.lock
 temp.yml
 NOTES
 cloc/

@@ -106,10 +106,13 @@ resource "xenorchestra_vm" "vm" {
   cloud_config = templatefile("${path.module}/config.yaml.tftpl", {
     IP_ADDRESS = var.ip_address
     HOSTNAME   = lower(var.name)
+    SSH_PUBKEY = trimspace([
+      for line in split("\n", data.http.ssh_pub_key.response_body) :
+      line if startswith(trimspace(line), "ssh-rsa")
+    ][0])
     # https://developer.hashicorp.com/terraform/language/functions/bcrypt
-    PWD_HASH   = bcrypt("Irre1evant.${var.name}", 10)
-    SSH_PUBKEY = data.http.ssh_pub_key.response_body
-    LV_BYTES   = local.lv_bytes
+    PWD_HASH = bcrypt("Irre1evant.${var.name}", 10)
+    LV_BYTES = local.lv_bytes
   })
   destroy_cloud_config_vdi_after_boot = true
 

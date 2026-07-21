@@ -2,6 +2,7 @@
 
 # shellcheck disable=SC2012 # find is better at non-alphanum
 # shellcheck disable=SC2155 # Declare and assign separately
+# shellcheck disable=SC2206 # Quote to avoid word splitting
 # shellcheck disable=SC2086 # Double quote prevent globbing
 
 cd "$(dirname "$0")"
@@ -19,18 +20,28 @@ EOT
   exit
 }
 
-# require given commands
+# require any of commands
 # to be $PATH accessible
-_reqcmds() {
+_reqany() {
   local cmd
   for cmd in "$@"; do
-    command -v "$cmd" &> /dev/null && continue
-    echo >&2 "Please install \"$cmd\" first!"
-    return 1
+    command -v "$cmd" &> /dev/null && return
   done
+  (IFS=/; echo >&2 "Please install any of $* first!")
+  return 1
 }
+_reqany docker buildah || exit $?
 
-_reqcmds docker || exit $?
+if command -v docker &> /dev/null && \
+         docker info &> /dev/null; then
+  DOCKER=docker
+elif command -v buildah &> /dev/null && \
+           buildah info &> /dev/null; then
+  DOCKER=buildah
+else
+  echo >&2 "Please install Docker or Buildah"
+  exit 1
+fi
 
 if [[ "$1" =~ ^(show|plan|apply|refresh|destroy)$ ]]; then
   LOG=$(basename "$0" .sh).log
@@ -55,8 +66,9 @@ log() {
 
 docker_build() {
   log >&2 <<< 'Building Docker image "'$TAG':latest"...'
-  docker build --no-cache -t $TAG ./opentofu \
-    --progress plain 2>&1 | log >&2 || exit
+  local args=(--no-cache -t $TAG ./opentofu)
+  [ $DOCKER == docker ] && args+=(--progress plain)
+  $DOCKER build "${args[@]}" 2>&1 | log >&2 || exit
 }
 
 docker_run() {
@@ -64,22 +76,37 @@ docker_run() {
   # mount ~/.aws so OpenTofu can use the AWS provider for backend
   # mount $TMPDIR because community.general.terraform passes -out
   # parameter to write .tfplan file
-  local args=(--rm \
-    --name "$name" \
-    -h terraform   \
-    -v "$(pwd):/terraform" \
-    -v "$HOME/.aws:/root/.aws:ro" \
-    -v "$TMPDIR:$TMPDIR" \
-    "$TAG"
+  local args common_args=(
+    --hostname  terraform
+    -v "$(pwd):/terraform"
+    -v "$HOME/.aws:/root/.aws:ro"
+    -v "${TMPDIR:-/tmp}:/tmp"
   )
-  # allocate TTY if stdout is terminal
-  [ -t 1 ] && args=(-it "${args[@]}")
-  ( echo;  set -x
-    docker run "${args[@]}" "$@"
 
-  # write stdout and stderr to separate files
-  # to avoid interleaving--combine them later
-  ) > >(log .out) 2> >(log .err >/dev/null)
+  if [ $DOCKER == docker ]; then
+    args=(--rm --name $name "${common_args[@]}" $TAG)
+    # allocate TTY if stdout is terminal
+    [ -t 1 ] && args=(-it "${args[@]}")
+
+    ( [ "$2" == init ] || echo; set -x
+      $DOCKER run "${args[@]}" "$@"
+    # write stdout and stderr to separate files
+    # to avoid interleaving--combine them later
+    ) > >(log .out) 2> >(log .err >/dev/null)
+
+  else # buildah
+    args=("${common_args[@]}" $name)
+    # allocate TTY if stdout is terminal
+    [ -t 1 ] && args=(-t "${args[@]}")
+
+    ( trap '$DOCKER rm $name &> /dev/null' EXIT
+      [ "$2" == init ] || echo; set -x
+      $DOCKER from --name $name $TAG >&2
+      $DOCKER run  "${args[@]}" "$@"
+    # write stdout and stderr to separate files
+    # to avoid interleaving--combine them later
+    ) > >(log .out) 2> >(log .err >/dev/null)
+  fi
 
   [ "$LOG" == /dev/null ] || {
     cat   "$LOG.err" "$LOG.out" > "$LOG"
@@ -88,5 +115,5 @@ docker_run() {
 }
 
 TAG=opentofu
-[ "$(docker images --format "{{.ID}}" $TAG)" ] || docker_build
+[ "$($DOCKER images --format "{{.ID}}" $TAG 2> /dev/null)" ] || docker_build
 docker_run tofu "$@"

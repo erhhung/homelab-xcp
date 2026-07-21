@@ -1,0 +1,15 @@
+# https://docs.ansible.com/ansible/latest/galaxy/user_guide.html#installing-roles-and-collections-from-the-same-requirements-yml-file
+# ansible-galaxy install -r requirements.yml
+---
+roles: []
+
+collections:
+  # https://docs.ansible.com/ansible/latest/collections/community/general
+  - name: community.general
+    version: "<12.0.0" # ansible-core 2.16.x
+    source: https://galaxy.ansible.com
+
+  # https://docs.ansible.com/ansible/latest/collections/ovirt/ovirt
+  - name: ovirt.ovirt
+    version: ">=3.2.0"
+    source: https://galaxy.ansible.com

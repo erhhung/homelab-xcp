@@ -14,12 +14,14 @@ Create a **Python virtualenv** and install the Ansible packages
 (using [uv](https://docs.astral.sh/uv/) is highly recommended):
 
 ```bash
-python3 -m venv .venv # or `uv venv`
+python3 -m venv .venv # or `uv venv --allow-existing`
 . .venv/bin/activate
 
-pip3 install -U pip
+python3 -m ensurepip --upgrade
 # pyproject.toml should be kept in-sync with requirements.txt
-pip3 install -r requirements.txt # or `uv sync`
+pip3 install -r requirements.txt # or `uv sync --no-dev`
+
+ansible-galaxy install -r requirements.yml
 ```
 
 Since XCP-ng is installed without private key authentication for SSH, Ansible requires the `sshpass`  
