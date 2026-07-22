@@ -15,6 +15,19 @@
       "icon": "terminal-bash"
     }
   },
+  "yaml.schemas": {
+    "https://raw.githubusercontent.com/ansible/ansible-lint/main/src/ansiblelint/schemas/ansible.json#/$defs/playbook": [
+      "playbooks/*.yml"
+    ],
+    "https://raw.githubusercontent.com/ansible/ansible-lint/main/src/ansiblelint/schemas/ansible.json#/$defs/tasks": [
+      "tasks/**/*.yml"
+    ],
+    "https://raw.githubusercontent.com/ansible/ansible-lint/main/src/ansiblelint/schemas/vars.json": [
+      "inventory/group_vars/**/*.yml",
+      "inventory/host_vars/**/*.yml",
+      "vars/*.yml"
+    ]
+  },
   "files.associations": {
     "*.json.tftpl": "json",
     "*.yaml.tftpl": "yaml",

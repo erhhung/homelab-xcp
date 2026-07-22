@@ -7,10 +7,14 @@ FROM alpine:latest
 
 COPY --from=tofu /usr/local/bin/tofu /usr/local/bin/
 
-RUN apk add --no-cache ca-certificates openssh sshpass
+RUN --mount=type=bind,source=ca.crt,target=/tmp/ca.crt \
+<<EOF
+apk add --no-cache ca-certificates openssh sshpass
+
 # add fourteeners.local CA certificate to trust store
-COPY ./ca.crt /usr/local/share/ca-certificates/ca.crt
-RUN update-ca-certificates
+cp /tmp/ca.crt /usr/local/share/ca-certificates/
+update-ca-certificates
+EOF
 
 # https://github.com/vatesfr/terraform-provider-xenorchestra#log-to-file
 ENV TF_LOG_PROVIDER="DEBUG"
