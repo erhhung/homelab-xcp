@@ -36,9 +36,9 @@ echo -e "\nActivating Python virtual environment...\n"
 . .venv/bin/activate
 
 echo -e "\nInstalling Ansible from requirements...\n"
-[ "$use_uv" ] || python3 -m ensurepip --upgrade
-[ "$use_uv" ] && uv   sync --no-cache --no-dev --link-mode=copy \
-              || pip3 install --no-cache-dir -r requirements.txt
+[ "$use_uv" ] || python3   -m -U ensurepip
+[ "$use_uv" ] && uv      sync -U --no-cache --no-dev --link-mode=copy \
+              || pip3 install -U --no-cache-dir -r requirements.txt
 
 # get playbooks that will be run
 get_playbooks() {

@@ -1,4 +1,4 @@
-# Only Python 3.6 is available on XCP-ng 8.2, which causes
+# Only Python 3.6 is available on XCP-ng 8.3, which causes
 # "SyntaxError: future feature annotations is not defined"
 # when gathering facts using ansible-core >= 2.17. See:
 # https://github.com/ansible/ansible/issues/82068#issuecomment-2123559913
@@ -11,7 +11,7 @@
       # https://docs.ansible.com/ansible/latest/reference_appendices/release_and_maintenance.html
       - ansible_version.full is version('2.17','<')
     success_msg: |-
-      Using supportd Ansible version: {{ ansible_version.full }}.
+      Using supported Ansible version: {{ ansible_version.full }}.
     fail_msg: |-
       Ansible version {{ ansible_version.full }} is not supported!
       This playbook requires "ansible < 10" (ansible-core < 2.17),

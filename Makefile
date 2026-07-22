@@ -63,10 +63,12 @@ check:
 																	 $(addsuffix .yml, $(PLAYBOOKS)))
 
 # run ansible-lint on all/specific playbooks
+# and suppress informational noise in stderr
 lint:
 	@ansible-lint $(addprefix playbooks/, \
 								$(addsuffix .yml, $(rest_goals))) \
-		2> >(sed -E 's/ Last profile.+$$//' >&2)
+		2> >(grep -v ANSIBLE_COLLECTIONS_SCAN_SYS_PATH \
+			  | sed -E 's/ Last profile.+$$//' >&2)
 
 # run OpenTofu command in ./terraform dir
 tf:
